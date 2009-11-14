@@ -1,0 +1,18 @@
+header, section, nav,footer{
+	display: block;
+	text-align: left;
+}
+h1, h2, h3, h4, h5, h6{
+	margin-bottom: .2em;
+}
+#header, #body, #footer{
+	margin: 0 auto;
+	width: 80%;
+}
+
+#footer{
+	position: fixed;
+	bottom: 0;
+	left: 10%;
+	right: 10%;
+}
