@@ -173,32 +173,38 @@ class FrontController extends Object{
 		$method = sprintf('%s_%s', $method, $r);
 		if(file_exists($file)){
 			class_exists($class_name) || require($file);
-			$obj = new $class_name();
-			$obj->file_type = $file_type;
-			if(!ob_start('ob_gzhandler')===false){
-				ob_start();
-			}
-			if($file_type == 'jsonp' && !$this->did_send_headers){
-				$this->addJsonpHeaders();
-			}
-
-			if($file_type == 'json' && !$this->did_send_headers){
-				$this->addJsonHeaders();
-			}
-
-			if($file_type == 'js' && !$this->did_send_headers){
-				$this->addJavascriptHeaders();
-			}
-			
 			try{
-				$output = Resource::sendMessage($obj, $method, $parts);
+				$obj = new $class_name();				
+				$obj->file_type = $file_type;
+				if(!ob_start('ob_gzhandler')===false){
+					ob_start();
+				}
+				if($file_type == 'jsonp' && !$this->did_send_headers){
+					$this->addJsonpHeaders();
+				}
+
+				if($file_type == 'json' && !$this->did_send_headers){
+					$this->addJsonHeaders();
+				}
+
+				if($file_type == 'js' && !$this->did_send_headers){
+					$this->addJavascriptHeaders();
+				}
+
+				try{
+					$output = Resource::sendMessage($obj, $method, $parts);
+				}catch(Exception $e){
+					self::notify('exceptionHasOccured', $this, $e);
+				}
+				if($obj->redirect_parameters != null){
+					self::redirectTo($obj->redirect_parameters['resource_name'], $obj->redirect_parameters['query_parameters'], $obj->redirect_parameters['make_secure']);
+				}else{
+					Resource::sendMessage($obj, 'didFinishLoading');			
+				}
 			}catch(Exception $e){
-				self::notify('exceptionHasOccured', $this, $e);
-			}
-			if($obj->redirect_parameters != null){
-				self::redirectTo($obj->redirect_parameters['resource_name'], $obj->redirect_parameters['query_parameters'], $obj->redirect_parameters['make_secure']);
-			}else{
-				Resource::sendMessage($obj, 'didFinishLoading');			
+				if($e->getCode() == 401){
+					self::notify('unauthorizedRequestHasOccurred', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
+				}
 			}
 			ob_end_flush();
 			$output = $this->trim($output);

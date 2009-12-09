@@ -259,8 +259,14 @@ class Resource extends Object{
 		
 		if($obj != null && is_object($obj)){
 			foreach($array as $key=>$value){
-				$setter = 'set' . String::camelize($key);
-				$getter = 'get' . String::camelize($key);
+				$name = ucfirst($key);
+				if(!method_exists($obj, 'set' . $name)){
+					$setter = 'set' . String::camelize($key);
+					$getter = 'get' . String::camelize($key);
+				}else{
+					$setter = 'set' . $name;
+					$getter = 'get' . $name;
+				}
 				
 				if(method_exists($obj, $setter)){
 					if(is_object($obj->{$getter}())){
