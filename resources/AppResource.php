@@ -66,12 +66,26 @@
 			}
 			return $output;
 		}
+		public function getTitleFromOutput($output){
+			$matches = array();
+			preg_match ( '/\<h1\>.*\<\/h1\>/' , $output, &$matches);
+			return String::stripHtmlTags($matches[0]);
+		}
 		public function resourceOrMethodNotFoundDidOccur($sender, $args){
 			$this->file_type = $args['file_type'];
 			parse_str($args['query_string']);
 			$page_name = preg_replace('/\//', '', $r);
-			$this->output = $this->renderView('error/404');
-			echo $this->renderView('layouts/default');
+			$view = $page_name . '_' . $this->file_type . '.php';
+			if(file_exists(FrontController::themePath() . '/views/index/' . $view)){
+				$this->output = $this->renderView('index/' . $page_name);
+				$this->title = $this->getTitleFromOutput($this->output);
+			}elseif(file_exists('views/index/' . $view)){
+				$this->output = $this->renderView('index/' . $page_name);
+				$this->title = $this->getTitleFromOutput($this->output);
+			}else{
+				$this->output = $this->renderView('error/404');
+			}
+			echo $this->renderView('layouts/default');			
 		}
 	}
 ?>

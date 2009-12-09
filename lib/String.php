@@ -170,6 +170,9 @@
 		public static function encrypt($value){
 			return sha1($value);
 		}
+		public static function stripHtmlTags($html){
+			return strip_tags($html);
+		}
 		
 	}
 ?>
