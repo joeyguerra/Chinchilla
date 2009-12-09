@@ -5,12 +5,9 @@
 		public function __construct(){
 			parent::__construct();
 			
-			if(isset($_SERVER['PHP_AUTH_USER'])){
-				
-			}
-			$resource_name = strtolower(str_replace('Resource', '', get_class($this)));
-			$this->resource_css = 'css/'.$resource_name . '.css';
-			$this->resource_js = 'js/'. $resource_name . '.js';
+			$this->resource_name = strtolower(str_replace('Resource', '', get_class($this)));
+			$this->resource_css = 'css/'.$this->resource_name . '.css';
+			$this->resource_js = 'js/'. $this->resource_name . '.js';
 			$root = str_replace('resources', '', dirname(__FILE__));
 			if(file_exists($root . FrontController::themePath() . $this->resource_js)){
 				$this->resource_js = FrontController::urlFor('themes') . $this->resource_js;
@@ -30,11 +27,17 @@
 			}else{
 				$this->resource_css = null;
 			}
+			
+			if(class_exists('AppConfiguration')){
+				$this->config = new AppConfiguration();
+			}
+			
 		}
 		
 		public function __destruct(){
 			parent::__destruct();
 		}
+		public $resource_name;
 		public $resource_css;
 		public $resource_js;
 		protected $config;
@@ -46,16 +49,20 @@
 		public function exceptionHasOccured($sender, Exception $e){
 			if($e->getCode() == 401){
 				FrontController::redirectTo(null);
-			}
-			
-			if($e->getCode() == 404){
+			}elseif($e->getCode() == 404){
 				$this->output = $this->renderView('error/404');
+				echo $this->renderView('layouts/default');
+			}else{
+				$this->output = $this->renderView('error/friendly_message', array('e'=>$e));
 				echo $this->renderView('layouts/default');
 			}
 			
 		}
-		public function unauthorizedRequestHasOccurred(){
-			$this->redirectTo(null);
+		public function unauthorizedRequestHasOccurred($sender, $args){
+		    header('WWW-Authenticate: Basic realm="My Realm"');
+		    header('HTTP/1.0 401 Unauthorized');
+		    echo 'Unauthorized access';
+		    exit;
 		}
 		public function errorDidHappen($sender, $error_html){
 			self::$error_html = $error_html;
@@ -66,10 +73,14 @@
 			}
 			return $output;
 		}
+
 		public function getTitleFromOutput($output){
 			$matches = array();
-			preg_match ( '/\<h1\>.*\<\/h1\>/' , $output, &$matches);
-			return String::stripHtmlTags($matches[0]);
+			if(preg_match ( '/\<h1\>.*\<\/h1\>/' , $output, &$matches)){
+				return String::stripHtmlTags($matches[0]);
+			}else{
+				return 'New Document';
+			}
 		}
 		public function resourceOrMethodNotFoundDidOccur($sender, $args){
 			$this->file_type = $args['file_type'];
@@ -77,9 +88,11 @@
 			$page_name = preg_replace('/\//', '', $r);
 			$view = $page_name . '_' . $this->file_type . '.php';
 			if(file_exists(FrontController::themePath() . '/views/index/' . $view)){
+				$this->resource_name = $page_name;
 				$this->output = $this->renderView('index/' . $page_name);
 				$this->title = $this->getTitleFromOutput($this->output);
 			}elseif(file_exists('views/index/' . $view)){
+				$this->resource_name = $page_name;
 				$this->output = $this->renderView('index/' . $page_name);
 				$this->title = $this->getTitleFromOutput($this->output);
 			}else{
