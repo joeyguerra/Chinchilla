@@ -17,31 +17,37 @@ class FrontController extends Object{
 	private $config;
 	public static $site_path;
 
-	private $did_send_headers;
 	public static $error_html;
 	
-	private function addJsonpHeaders(){
-		$this->did_send_headers = true;
+	public static function sendRssHeaders(){
+		header('Cache-Control: no-cache, must-revalidate');
+		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
+		header('Content-type: application/rss+xml;charset=UTF-8');
+	}
+	public static function sendXmlHeaders($type){
+		header('Cache-Control: no-cache, must-revalidate');
+		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
+		if($type == null){
+			header('Content-type: text/xml;charset=UTF-8');
+		}else{
+			header('Content-type: application/' . $type . '+xml;charset=UTF-8');
+		}
+	}
+	public static function sendJsonpHeaders(){
 		header('Cache-Control: no-cache, must-revalidate');
 		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
 		header('Content-type: application/javascript;charset=UTF-8');
-		//header('Content-type: multipart/x-mixed-replace;boundary=eof');
 	}
-	
-	private function addJavascriptHeaders(){
-		$this->did_send_headers = true;
+	public static function sendJavascriptHeaders(){
 		header('Cache-Control: no-cache, must-revalidate');
 		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
 		header('Content-type: text/javascript;charset=UTF-8');
 	}
-	
-	private function addJsonHeaders(){
-		$this->did_send_headers = true;
+	public static function sendJsonHeaders(){
 		header('Cache-Control: no-cache, must-revalidate');
 		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
 		header('Content-type: application/json;charset=UTF-8');
 	}
-	
 	public static function themePath(){
 		$config = null;
 		if(class_exists('AppConfiguration')){
@@ -179,17 +185,6 @@ class FrontController extends Object{
 				if(!ob_start('ob_gzhandler')===false){
 					ob_start();
 				}
-				if($file_type == 'jsonp' && !$this->did_send_headers){
-					$this->addJsonpHeaders();
-				}
-
-				if($file_type == 'json' && !$this->did_send_headers){
-					$this->addJsonHeaders();
-				}
-
-				if($file_type == 'js' && !$this->did_send_headers){
-					$this->addJavascriptHeaders();
-				}
 
 				try{
 					$output = Resource::sendMessage($obj, $method, $parts);
@@ -208,6 +203,28 @@ class FrontController extends Object{
 			}
 			ob_end_flush();
 			$output = $this->trim($output);
+			switch($file_type){
+				case('js'):
+					self::sendJavascriptHeaders();
+					break;
+				case('jsonp'):
+					self::sendJsonpHeaders();
+					break;
+				case('json'):
+					self::sendJsonHeaders();
+					break;
+				case('xml'):
+					self::sendXmlHeaders(null);
+					break;
+				case('rss'):
+					self::sendXmlHeaders('rss');
+					break;
+				case('atom'):
+					self::sendXmlHeaders('atom');
+					break;
+				default:
+					break;
+			}
 			return $output;
 		}else{
 			// Send a 404 notification so that something else can handle it.

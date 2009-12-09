@@ -84,8 +84,14 @@
 		}
 		public function resourceOrMethodNotFoundDidOccur($sender, $args){
 			$this->file_type = $args['file_type'];
+			// the url really looks like index.php?r=resource.filetype.
 			parse_str($args['query_string']);
 			$page_name = preg_replace('/\//', '', $r);
+			$parts = explode('.', $r);
+			if(count($parts) > 1){
+				$this->file_type = $parts[1];
+			}
+			$page_name = $parts[0];
 			$view = $page_name . '_' . $this->file_type . '.php';
 			if(file_exists(FrontController::themePath() . '/views/index/' . $view)){
 				$this->resource_name = $page_name;
@@ -96,7 +102,30 @@
 				$this->output = $this->renderView('index/' . $page_name);
 				$this->title = $this->getTitleFromOutput($this->output);
 			}else{
+				$this->file_type = 'html';
 				$this->output = $this->renderView('error/404');
+			}
+			switch($this->file_type){
+				case('js'):
+					FrontController::sendJavascriptHeaders();
+					break;
+				case('jsonp'):
+					FrontController::sendJsonpHeaders();
+					break;
+				case('json'):
+					FrontController::sendJsonHeaders();
+					break;
+				case('xml'):
+					FrontController::sendXmlHeaders(null);
+					break;
+				case('rss'):
+					FrontController::sendXmlHeaders('rss');
+					break;
+				case('atom'):
+					FrontController::sendXmlHeaders('atom');
+					break;
+				default:
+					break;
 			}
 			echo $this->renderView('layouts/default');			
 		}

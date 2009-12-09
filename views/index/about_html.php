@@ -1,0 +1,2 @@
+<h1>About creating a new view without an associated resource</h1>
+<p>This is how you can create a new view without having to create a new resource. Just create a new file in the views/index folder called about_html.php, where "about" maps to the url and "html" is the file type. So you could also request /about.html and it would render this view.</p>
