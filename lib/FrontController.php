@@ -75,12 +75,15 @@ class FrontController extends Object{
         if($resource != null){
             $resource .= '/';
         }        
-		
+		$resource_id = 0;
         if($params != null){
-			$resource .= ($use_clean_urls ? '?' : '&');
 			$query_string = array();
 			foreach($params as $key=>$val){
-				$query_string[] = sprintf('%s=%s', $key, $val);
+				if($key == 'id'){
+					$resource_id = $val;
+				}else{
+					$query_string[] = sprintf('%s=%s', $key, $val);					
+				}
 			}
 		}
         
@@ -88,7 +91,11 @@ class FrontController extends Object{
         if(!$use_clean_urls){
             $resource = 'index.php?r=' . $resource;
         }
+		if($resource_id > 0){
+			$resource .= $resource_id;
+		}
         if($query_string != null){
+			$resource .= ($use_clean_urls ? '?' : '&');
             $resource .= implode('&', $query_string);
         }
 		if($make_secure && $config != null && $config->ssl_path != null){

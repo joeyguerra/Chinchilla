@@ -131,10 +131,14 @@ class Resource extends Object{
 		$reflector = new ReflectionClass($class_name);
 		$args = array();
 		$extended_message = $message;
+		$resource_id = 0;
 		if($parts != null && count($parts) > 0){
-			$extended_message .= '_' . implode('_', $parts);
+			$resource_id = $parts[0];
+			array_shift($parts);
+			if(count($parts) > 0){
+				$extended_message .= '_' . implode('_', $parts);
+			}
 		}
-				
 		if($reflector->hasMethod($extended_message)){
 			$message = $extended_message;
 		}
@@ -145,7 +149,7 @@ class Resource extends Object{
 			if($numberOfParams > 0){
 				$params = $method->getParameters();
 				foreach($params as $param){
-					$arg = self::populateParameter($param);
+					$arg = self::populateParameter($param, $resource_id);
 					if($arg != null){
 						$args[] = $arg;
 					}elseif($param->isDefaultValueAvailable()){
@@ -178,13 +182,16 @@ class Resource extends Object{
 			$_SESSION['userMessage'] = $value;
 		}
 	}
-	private static function populateParameter($param){		
+	private static function populateParameter($param, $id = 0){
 		$value = null;
 		$obj = null;
 		$ref_class = null;
 		$class_name = null;
 		$name = $param->getName();
 		$ref_class = $param->getClass();
+		if($id > 0 && $name == 'id'){
+			return $id;
+		}
 		if(array_key_exists($name, $_FILES)){
 			$obj = $_FILES[$name];
 		}elseif(array_key_exists($name, $_REQUEST)){
@@ -222,6 +229,18 @@ class Resource extends Object{
 						}
 					}
 				}
+				// 2009-12-01, jguerra: I want to handle the situation where the id is passed in the url as a path
+				// value like user/1. Right now, this code assumes that there's a property called id and it's an integer.
+				// I can imagine someone wanting to use a non integer as an identifier and possibly a different name for 
+				// the id property. But I'm not coding for that at this time.
+				if($id > 0 && $ref_class->hasProperty('id')){
+					$prop = $ref_class->getProperty('id');
+					if($prop != null){
+						$obj->{'id'} = self::valueWithCast(self::sanitize($id), null);
+						$is_null = false;
+					}
+				}
+				
 				if($is_null){
 					$obj = null;
 				}
