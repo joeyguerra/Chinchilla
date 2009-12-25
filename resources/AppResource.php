@@ -92,7 +92,7 @@
 			if(count($parts) > 1){
 				$this->file_type = $parts[1];
 			}
-			$page_name = $parts[0];
+			$page_name = preg_replace('/\/$/', '', $parts[0]);
 			$view = $page_name . '_' . $this->file_type . '.php';
 			if(file_exists(FrontController::themePath() . '/views/index/' . $view)){
 				$this->resource_name = $page_name;

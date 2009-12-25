@@ -137,7 +137,7 @@ class FrontController extends Object{
 			$r = array_shift($parts);
 		}
 		if(stripos($r, '.') !== false){
-			$extension = expode('.', $r);
+			$extension = explode('.', $r);
 			$r = $extension[0];
 		}
 		return $r;
