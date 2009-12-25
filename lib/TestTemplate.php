@@ -9,6 +9,7 @@
 		private $assertions;
 		private $passed;
 		private $failed;
+		protected $title;
 		
 		public function execute(){
 			$this->setUp();
@@ -16,16 +17,18 @@
 			$this->tearDown();			
 		}
 		public function message(){
-			$message = 'Tests have executed:<br />';
-			$message .= sprintf('Passed: %d<br />', count($this->passed));
+			$message = '<h1>' . $this->title . '</h1>';
+			$message .= sprintf('<dl class="passed"><dt>Passed: %d</dt>', count($this->passed));
 			foreach($this->passed as $key=>$value){
-				$message .= sprintf('%d=>%s <br /><br />', $key, $value);
+				$message .= sprintf('<dd>%d=>%s</dd>', $key, $value);
 			}
-			$message .= sprintf('<br />Failed: %d<br />', count($this->failed));
+			$message .= '</dl><dl class="failed">';
+			
+			$message .= sprintf('<dt>Failed: %d</dt>', count($this->failed));
 			foreach($this->failed as $key=>$value){
-				$message .= sprintf('%d=>%s <br />', $key, $value);
+				$message .= sprintf('<dd>%d=>%s</dd>', $key, $value);
 			}
-			return $message;
+			return $message . '</dl>';
 		}
 		private function runTests(){
 			$reflector = new ReflectionClass(get_class($this));

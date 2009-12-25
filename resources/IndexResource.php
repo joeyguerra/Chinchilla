@@ -14,6 +14,12 @@ class IndexResource extends AppResource{
 		return $this->renderView('layouts/default', null);
 	}
 	
+	public function get_index_test(){
+		$this->title = "Chinchilla Test Method";
+		$this->output = 'Just a test method to test multipart url routing.';
+		return $this->renderView('layouts/default', null);
+	}
+	
 }
 
 ?>

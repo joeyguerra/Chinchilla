@@ -4,6 +4,7 @@
     class LogTest extends TestTemplate {
         public function __construct() {
             parent::__construct();
+			$this->title = "Log test";
         }
 		public function __destruct(){}
 				
@@ -17,7 +18,7 @@
 			
 			$log = new Log(implode('/', $segments) . '/logs/', 5, false);
 			$log->write('test');
-			$this->assert(file_exists(date("Ymd") . ".txt"), 'Testing post resource getting posts');
+			$this->assert(file_exists(date("Ymd") . ".txt"), 'Testing writing to a file from the Log class');
 		}
     }
 ?>

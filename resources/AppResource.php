@@ -1,6 +1,7 @@
 <?php
 	class_exists('Resource') || require('lib/Resource.php');
 	class_exists('FrontController') || require('lib/FrontController.php');
+	class_exists('NotificationCenter') || require('lib/NotificationCenter.php');
 	class AppResource extends Resource{
 		public function __construct(){
 			parent::__construct();

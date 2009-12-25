@@ -1,10 +1,14 @@
 <?php
 	date_default_timezone_set('America/Chicago');
 	$_appPath = str_replace('/tests/index.php', '', __FILE__);
+	$output = '';
 	set_include_path(get_include_path() . PATH_SEPARATOR . $_appPath . PATH_SEPARATOR);
-	require('AppConfiguration.php');
 	if(!isset($_SESSION))
 		$_SESSION = array();
+
+	if(!ob_start('ob_gzhandler')===false){
+		ob_start();
+	}
 	
 	$root = str_replace('index.php', '', __FILE__);
 	$unit = $root . 'unit/';
@@ -17,8 +21,18 @@
 			$className = str_replace('.php', '', $pieces[count($pieces)-1]);
 			$test = new $className();
 			$test->execute();
-			echo $test->message();
+			$output .= $test->message();
 		}
 	}
-	$folder->close();	
+	$folder->close();
+	ob_end_flush();
 ?>
+
+<html>
+	<head>
+		<title>Tests</title>
+	</head>
+	<body>
+		<?php echo $output;?>
+	</body>
+</html>		

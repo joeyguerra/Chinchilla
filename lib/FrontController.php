@@ -128,49 +128,90 @@ class FrontController extends Object{
 		}
 	}
 	
-	public function execute(){		
- 		session_start();			
-        $file_type = 'html';
-		$method = strtolower($_SERVER['REQUEST_METHOD']);
-		
-		// During development, I was getting weird behavior on a login page posting to a secure server from
-		// an insecure request. So I added this message because the request method turned out to be options. 
-		// I have no idea why it was options.
-		if($method == 'options'){
-			error_log('method is options. You might want to check that you are loading the page via ssl');
-		}
-		// This is for browsers that don't support other methods like delete, put, trace, options.
-		$_method = (array_key_exists('_method', $_POST) ? strtolower($_POST['_method']) : null);
-		if($_method != null){
-			$method = $_method;
-		}
-		$resource_path = 'resources/';
-		$path = explode('/', $_SERVER['QUERY_STRING']);
-		$r = (array_key_exists('r', $_GET) ? $_GET['r'] : null);
-		if($r == null){
-			$r = 'index';
-		}
-		$parts = explode('/', $r);
-
-		// $parts contains empty items. I want to remove those items.
-		$parts = array_filter($parts, array($this, 'isEmpty'));
-
+	// Assumes that the first part of the url is the resource name.
+	public function parseForResourceName($default_value, $parts){
+		$r = $default_value;
 		// This logic just sets the resource from the url, assuming that the resource name is the first item
 		// in the array.
 		if(count($parts) > 0){
 			$r = array_shift($parts);
 		}
-
-		// Get the file type so we can present the data in different formats like html, xml, json, javascript and 
-		// whatever else. Maybe even .atom, .rss, etc...
-		NotificationCenter::getInstance()->postNotificationName('LogEventHasOccurred', 'before setting extension ' . $r, $this);
 		if(stripos($r, '.') !== false){
-			$extension = explode('.', $r);
+			$extension = expode('.', $r);
 			$r = $extension[0];
-			$file_type = $extension[1];
 		}
-		NotificationCenter::getInstance()->postNotificationName('LogEventHasOccurred', 'after setting extension ' . $file_type, $this);
+		return $r;
+	}
+	public function parseForFileType($parts){
+		$file_type = 'html';
+		if($parts != null && count($parts) > 0){
+			$last_item = $parts[count($parts) - 1];
+			if(stripos($last_item, '.') !== false){
+				$extension = explode('.', $last_item);
+				$file_type = $extension[count($extension) - 1];
+			}
+		}
+		if(!in_array($file_type, array('html', 'json', 'xml', 'js', 'atom', 'rss'))){
+			$file_type = 'html';
+		}
+		return $file_type;
+	}
+	public function parseForMessageAndResourceId($resource, $parts){
+		$message = strtolower($_SERVER['REQUEST_METHOD']);
+		$resource_id = 0;
+		// During development, I was getting weird behavior on a login page posting to a secure server from
+		// an insecure request. So I added this message because the request method turned out to be options. 
+		// I have no idea why it was options.
+		if($message == 'options'){
+			error_log('method is options. You might want to check that you are loading the page via ssl');
+		}
+		// This is for browsers that don't support other methods like delete, put, trace, options.
+		$_method = (array_key_exists('_method', $_POST) ? strtolower($_POST['_method']) : null);
+		if($_method != null){
+			$message = $_method;
+		}
+		$class_name = get_class($resource);
+		if($parts != null && count($parts) > 0){
+			$message .= '_' . $parts[0];
+		}else{
+			$message .= '_' . 'index';
+		}
+		if(count($parts) > 0){
+			$resource_id = $parts[count($parts) - 1];
+		}
+
+		if($parts != null && count($parts) > 1){
+			$reflector = new ReflectionClass($class_name);
+			$ubounds = count($parts);
+			$temp_message = $message;
+			// This is an example where tests unveiled a possible problem. I had set $index = 0, but when I created and ran tests for this method, it exposed a bug where the first item in parts was the resource and shouldn't be part of the message.
+			for($index=1;$index<$ubounds; $index++){
+				$temp_message .= '_' . $parts[$index];
+				if($reflector->hasMethod($temp_message)){
+					$message = $temp_message;
+					if($ubounds > $index){
+						$resource_id = $parts[$ubounds-1];
+					}
+					break;
+				}
+			}
+		}
+		return array('message'=>$message, 'resource_id'=>$resource_id);
+	}
+
+	public function execute(){		
+ 		session_start();
 		
+		$resource_path = 'resources/';
+		$r = (array_key_exists('r', $_GET) ? $_GET['r'] : null);
+		if($r == null){
+			$r = 'index';
+		}
+		$parts = explode('/', $r);
+		// $parts contains empty items. I want to remove those items.
+		$parts = array_filter($parts, array($this, 'isEmpty'));
+		$r = $this->parseForResourceName($r, $parts);
+		$file_type = $this->parseForFileType($parts);
 		$resource_name = String::camelize($r);
 		$class_name = sprintf('%sResource', $resource_name);
 		$file = $resource_path . $class_name . '.php';
@@ -182,19 +223,20 @@ class FrontController extends Object{
 				$class_name = $singular_version;
 			}
 		}
-
-		$method = sprintf('%s_%s', $method, $r);
 		if(file_exists($file)){
 			class_exists($class_name) || require($file);
 			try{
-				$obj = new $class_name();				
+				$obj = new $class_name();		
 				$obj->file_type = $file_type;
+				$result = $this->parseForMessageAndResourceId($obj, $parts);
+				$method = $result['message'];
+				$resource_id = $result['resource_id'];
 				if(!ob_start('ob_gzhandler')===false){
 					ob_start();
 				}
 
 				try{
-					$output = Resource::sendMessage($obj, $method, $parts);
+					$output = Resource::sendMessage($obj, $method, $resource_id);
 				}catch(Exception $e){
 					self::notify('exceptionHasOccured', $this, $e);
 				}

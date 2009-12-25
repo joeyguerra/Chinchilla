@@ -37,10 +37,11 @@ class Resource extends Object{
 			}
 			
 			ob_start();
-			if(file_exists(FrontController::themePath() . '/views/' . $full_path)){
-				require(FrontController::themePath() . '/views/' . $full_path);
-			}else if(file_exists('views/' . $full_path)){
-				require('views/' . $full_path);
+			$root_path = str_replace('lib/Resource.php', '', __FILE__);
+			if(file_exists($root_path . FrontController::themePath() . '/views/' . $full_path)){
+				require($root_path . FrontController::themePath() . '/views/' . $full_path);
+			}else if(file_exists($root_path . 'views/' . $full_path)){
+				require($root_path . 'views/' . $full_path);
 			}else{
 				throw new Exception("404: File not found", 404);
 			}
@@ -126,23 +127,10 @@ class Resource extends Object{
 		return $obj;
 	}
 	
-	public static function sendMessage($obj, $message, $parts = null){
+	public static function sendMessage($obj, $message, $resource_id = 0){
 		$class_name = get_class($obj);
 		$reflector = new ReflectionClass($class_name);
 		$args = array();
-		$extended_message = $message;
-		$resource_id = 0;
-		if($parts != null && count($parts) > 0){
-			$resource_id = $parts[0];
-			array_shift($parts);
-			if(count($parts) > 0){
-				$extended_message .= '_' . implode('_', $parts);
-			}
-		}
-		if($reflector->hasMethod($extended_message)){
-			$message = $extended_message;
-		}
-
 		if($reflector->hasMethod($message)){
 			$method = $reflector->getMethod($message);
 			$numberOfParams = $method->getNumberOfParameters();
