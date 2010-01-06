@@ -9,7 +9,7 @@ class IndexResource extends AppResource{
 	}
 	
 	public function get_index(){
-		$this->title = "Introduction to Chinchilla";
+		$this->title = "A RESTful framework in PHP";
 		$this->output = $this->renderView('index/index', null);
 		return $this->renderView('layouts/default', null);
 	}
