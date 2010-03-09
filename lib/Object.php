@@ -19,13 +19,13 @@
 		public function __destruct(){}
 		
 		private static $observers;
-		public static function addObserver($observer){
-			self::$observers[] = $observer;
+		public static function addObserver($observer, $notification, $publisher){
+			self::$observers[] = new Observer($observer, $notification, $publisher);
 		}
 		public static function removeObserver($observer){
 			$tmp = array();
 			foreach(self::$observers as $o){
-				if($o !== $observer){
+				if($o->obj !== $observer){
 					$tmp[] = $o;
 				}
 			}
@@ -33,34 +33,50 @@
 		}
 		public $_attributes;
 		public static function notify($notification, $sender, $info){
+			$publisher = $sender;
+			if(is_object($sender)){
+				$publisher = get_class($sender);
+			}
 			if(self::$observers != null){
 				foreach(self::$observers as $observer){
-					if(method_exists($observer, $notification)){
-						$observer->{$notification}($sender, $info);
+					if(method_exists($observer->obj, $notification) && $observer->publisher === $publisher){
+						$observer->obj->{$notification}($sender, $info);
 					}
 				}
 				
 			}
 		}
-		
+
 		public function __get($key){
 			if($this->_attributes == null){
 				$this->_attributes = new Hashtable();
 			}
+			$val = null;
 			if($this->_attributes->offsetExists($key)){
-				return $this->_attributes->offsetGet($key);
+				$val = $this->_attributes->offsetGet($key);
 			}
 			$getter = 'get' . String::camelize($key);
 			if(method_exists($this, $getter)){
-				return $this->{$getter}();
+				$val = $this->{$getter}();
 			}
+			if(count(self::$observers) > 0){
+				$publisher = get_class($this);
+				foreach(self::$observers as $observer){
+					if(method_exists($observer->obj, 'willReturnValueForKey') && $observer->publisher === $publisher){
+						$val = $observer->obj->willReturnValueForKey($key, $this, $val);
+					}
+				}
+			}
+			return $val;
+
 		}
 
 		public function __set($key, $val){
 			if(count(self::$observers) > 0){
+				$publisher = get_class($this);
 				foreach(self::$observers as $observer){
-					if(method_exists($observer, 'observeForKeyPath')){
-						$observer->observeForKeyPath($key, $this, $val);
+					if(method_exists($observer->obj, 'observeForKeyPath') && $observer->publisher === $publisher){
+						$observer->obj->observeForKeyPath($key, $this, $val);
 					}
 				}
 			}
@@ -74,5 +90,20 @@
 				$this->_attributes->offsetSet($key, $val);
 			}
 		}
+	}
+	
+	class Observer{
+		public function __construct($obj, $notification, $publisher){
+			$this->obj = $obj;
+			$this->notification = $notification;
+			if(is_object($publisher)){
+				$publisher = get_class($publisher);
+			}
+			$this->publisher = $publisher;
+		}
+		
+		public $obj;
+		public $notification;
+		public $publisher;
 	}
 ?>

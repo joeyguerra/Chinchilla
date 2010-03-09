@@ -18,7 +18,6 @@
 				, CURLOPT_CONNECTTIMEOUT=>5
 				, CURLOPT_TIMEOUT=>5
 				, CURLOPT_MAXREDIRS=>2
-				, CURLOPT_URL=>$url
 				, CURLOPT_RETURNTRANSFER=>true
 				, CURLOPT_VERBOSE=>false
 				, CURLOPT_REFERER=>FrontController::$site_path
@@ -32,7 +31,11 @@
 				$curl_options[CURLOPT_POST] = true;
 				$curl_options[CURLOPT_POSTFIELDS] = $data;
 				$curl_options[CURLOPT_HTTPGET] = false;
+			}elseif($method === 'get' && $data !== null){
+				$url .= '&' . $data;
 			}
+			
+			$curl_options[CURLOPT_URL] =$url;
 			
 	        // set url 
 			curl_setopt_array($ch, $curl_options);

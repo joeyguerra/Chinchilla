@@ -132,7 +132,64 @@
 	        else
 	            return $count . " " . self::pluralize($string);
 	    }
-		
+		public static function getConjunctions(){
+			return array('an', 'and', 'but', 'or', 'nor', 'so', 'yet', 'when', 'for', 'after', 'although', 'as', 'because', 'before', 'how', 'if', 'once', 'since', 'than', 'though', 'till', 'until', 'where', 'whether', 'while', 'either', 'not', 'only', 'also', 'the', 'thats', 'that', "that's", 'that is', 'that was'); 
+		}
+		public static function getPrepositions(){
+			return array('about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'at', 'before', 'behind', 'below', 'beneath', 'beside', 'between', 'beyond', 'but', 'by', 'despite', 'down', 'during', 'except', 'for', 'from', 'in', 'inside', 'into', 'like', 'near', 'of', 'off', 'on', 'onto', 'out', 'outside', 'over', 'past', 'since', 'through', 'throughout', 'till', 'to', 'toward', 'under', 'underneath', 'until', 'up', 'upon', 'with', 'within','without', 'was', 'a', 'to');
+		}
+		public static function getPronouns(){
+			return array('him', 'he', 'his', 'it', 'her', 'she', 'hers', 'we', 'our', 'ours', 'theirs', 'their', 'us');
+		}
+		public static function getAdjectives(){
+			return array('tough');
+		}
+		public static function getAdverbs(){
+			return array('how', 'when', 'where', 'how much');
+		}
+		public static function getVerbs(){
+			return array('are', 'am', 'is', 'was', 'using', 'use', 'uses', 'want');
+		}
+		public static function getNouns(){
+			return array('key');
+		}
+		public static function getKeyWordsFromContent($content){
+			$pattern = implode(' | ', self::getConjunctions());
+			$pattern .= implode(' | ', self::getPrepositions());
+			$pattern .= implode(' | ', self::getPronouns());
+			$pattern .= implode(' | ', self::getAdjectives());
+			$pattern .= implode(' | ', self::getAdverbs());
+			$pattern .= implode(' | ', self::getVerbs());
+			$pattern .= implode(' | ', self::getNouns());
+			$content = self::replace('/'. $pattern . '/i', '', $content);			
+			$keywords = self::getImportantWordsFrom($content);
+			$popular_words = array();
+			$current_word = null;
+			$ubounds = count($keywords);
+			$list = implode(' ', $keywords);
+			$matches = array();
+			foreach($keywords as $current_word){
+				if(preg_match_all('/' . $current_word . '/i', $list, $matches) > 5 && array_search($current_word, $popular_words) === false){
+					$popular_words[] = $current_word;
+				}
+			}
+			return $popular_words;
+		}
+		public static function getImportantWordsFrom($content){
+			$words = explode(' ', $content);
+			$keywords = array();
+			$index = 0;
+			$ubounds = count($words);
+			for($index = 0; $index < $ubounds; $index++){
+				$words[$index] = self::replace('/[^A-Z^a-z^0-9]+/', '', $words[$index]);
+				if(strlen(trim($words[$index])) > 0){
+					$keywords[] = $words[$index];
+				}
+			}
+			$keywords = array_diff($keywords, self::getConjunctions(), self::getPrepositions(), self::getAdverbs(), self::getVerbs(), self::getPronouns(), self::getNouns(), self::getAdjectives());
+			return $keywords;
+		}
+
 		public static function explodeAndTrim($csvString){
 			$list = explode(',', $csvString);
 			foreach($list as $key=>$value){

@@ -1,64 +1,121 @@
 <?php
 class_exists('Object') || require('Object.php');
 class Resource extends Object{
-	public function __construct(){}
-	public function __destruct(){}
+	public function __construct($attributes = null){
+		parent::__construct($attributes);
+	}
+	public function __destruct(){
+		parent::__destruct();
+	}
 	public $output;
+	public $original_resource_name;
 	public $resource_css;
 	public $title;
+	public $description;
 	public $file_type;
 	public $redirect_parameters;
 	protected function redirectTo($resource_name, $query_parameters = null, $make_secure = false){
 		$this->redirect_parameters = array('resource_name'=>$resource_name, 'query_parameters'=>$query_parameters, 'make_secure'=>$make_secure);
 	}
 	
-	protected function renderView($file, $data = null){
+	/* This method is for rendering a view. It's based on the file type and assumes that the file type is html.
+	* It also maps the resources properties to the templates in the view like {$person->name} or you can send 
+	* in an array that will be exported for the view to use the variables.
+	* I've prefixed all variable names with __ to avoid collisions when extracing variables from the array.
+	*/
+	protected function renderView($__file, $__data = null, $__file_type = null){
 		$this->file_type = ($this->file_type == null ? 'html' : $this->file_type);
-		if($file != null){
-			$r = new ReflectionClass(get_class($this));
-			$properties = array();
-			foreach($r->getProperties() as $property){
+		if($__file != null){
+			$__r = new ReflectionClass(get_class($this));
+			$__properties = array();
+			foreach($__r->getProperties() as $property){
 				if($property->isPublic()){
 					$name = $property->getName();
-					$properties[$name] = $this->{$name};
+					$__properties[$name] = $this->{$name};
 				}
-			}
-						
-			if(count($properties) > 0){
-				extract($properties);
+			}						
+			if(count($__properties) > 0){
+				extract($__properties);
 			}
 
-			if($data != null){
-				extract($data);
+			if($__data != null){
+				extract($__data);
 			}
-			$full_path = sprintf('%s_%s.php', $file, $this->file_type);
-			if($this->file_type != 'html' && strpos($file, 'layouts/') !== false){
+
+			$__full_path = sprintf('%s_%s.php', $__file, $this->file_type);
+			if(!in_array($this->file_type, array('html', 'xml')) && $this->is_layout($__file)){
 				return $this->output;
 			}
 			
 			ob_start();
-			$root_path = str_replace('lib/Resource.php', '', __FILE__);
-			if(file_exists($root_path . FrontController::themePath() . '/views/' . $full_path)){
-				require($root_path . FrontController::themePath() . '/views/' . $full_path);
-			}else if(file_exists($root_path . 'views/' . $full_path)){
-				require($root_path . 'views/' . $full_path);
+			$__theme_view = FrontController::get_virtual_path() . '/' . FrontController::themePath() . '/views/' . $__full_path;
+			$__default_view = str_replace('lib/Resource.php', '', __FILE__) . 'views/' . $__full_path;
+			// phtml is a special file type that I want to provide fallback logic for. If the file type
+			// is phtml, then I want to check for a view with that extension but if it doesn't exist, 
+			// the code should fall back and load the html view instead. This allows us to use .html views
+			// for partial html requests while providing the ability to define a .phtml view specifically.
+			// I don't like the way this is coded. Nested if statements are confusing. But it works. I'd like
+			// to come up with a more structured way to implement this logic.
+			// I've also added the __file_type parameter for situations where you want to render a view inline another
+			// view so you can specify a different file type than what's assigned for the resource.
+			if($this->file_type === 'phtml'){
+				if(file_exists($__theme_view)){
+					require($__theme_view);
+				}else if(file_exists($__default_view)){
+					require($__default_view);
+				}else{
+					$__phtml_theme_view = String::replace('/\_phtml/', '_html', $__theme_view);
+					$__phtml_default_view = String::replace('/\_phtml/', '_html', $__default_view);
+					if(file_exists($__phtml_theme_view)){
+						require($__phtml_theme_view);
+					}else if(file_exists($__phtml_default_view)){
+						require($__phtml_default_view);
+					}else{
+						throw new Exception("404: File not found for phtml", 404);
+					}
+				}
+			}else if($__file_type === 'phtml'){
+				$__phtml_theme_view = String::replace('/\_html/', '_' . $__file_type, $__theme_view);
+				$__phtml_default_view = String::replace('/\_html/', '_' . $__file_type, $__default_view);
+				if(file_exists($__phtml_theme_view)){
+					require($__phtml_theme_view);
+				}else if(file_exists($__phtml_default_view)){
+					require($__phtml_default_view);
+				}else{
+					if(file_exists($__theme_view)){
+						require($__theme_view);
+					}else if(file_exists($__default_view)){
+						require($__default_view);
+					}else{
+						throw new Exception("404: File not found for phtml", 404);
+					}
+				}
+			}else if(file_exists($__theme_view)){
+				require($__theme_view);
+			}else if(file_exists($__default_view)){
+				require($__default_view);
 			}else{
 				throw new Exception("404: File not found", 404);
 			}
+						
+			
 			$this->output = ob_get_contents();
-			if(method_exists($this, 'hasRenderedOutput')){
-				$this->output = $this->hasRenderedOutput($this->output);
-			}
 			ob_end_clean();
-			if(count($properties) > 0){
-				$data = array_merge($data == null ? array() : $data, $properties);
+			if($this->is_layout($__file) && method_exists($this, 'hasRenderedOutput')){
+				$this->output = $this->hasRenderedOutput($__file, $this->output);
+			}
+			if(count($__properties) > 0){
+				$__data = array_merge($__data == null ? array() : $__data, $__properties);
 			}
 
-			if($data != null){
-				$this->output = $this->replace($this->output, $data);
+			if($__data != null){
+				$this->output = $this->replace($this->output, $__data);
 			}
 		}	
 		return $this->output;
+	}
+	private function is_layout($file){
+		return strpos($file, 'layouts/') !== false;
 	}
 	
 	protected function replace($output, $data){

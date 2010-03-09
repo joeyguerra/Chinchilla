@@ -5,18 +5,21 @@ if(file_exists('AppConfiguration.php')){
 	class_exists('AppConfiguration') || require('AppConfiguration.php');	
 }
 class FrontController extends Object{
-	public function __construct(){
+	public function __construct($context){
 		if(class_exists('AppConfiguration')){
 			$this->config = new AppConfiguration();
 		}else{
 			$this->config = null;
 		}
+		$this->context = $context;
 		$this->initSitePath();
 	}
 	public function __destruct(){}
+	
+	const UNAUTHORIZED = '401: Unauthorized';
 	private $config;
+	public $context;
 	public static $site_path;
-
 	public static $error_html;
 	
 	public static function sendRssHeaders(){
@@ -62,9 +65,15 @@ class FrontController extends Object{
 	public static function isSecure(){
 		return array_key_exists('HTTPS', $_SERVER);
 	}
+	public static function can_rewrite_url(){
+		return file_exists('.htaccess');
+	}
+	public static function index_script(){
+		return 'index.php?r=';
+	}
 	public static function urlFor($resource = null, $params = null, $make_secure = false){
 		$config = (class_exists('AppConfiguration') ? new AppConfiguration(null) : new Object());
-        $use_clean_urls = file_exists('.htaccess') || $resource == null;
+        $use_clean_urls = self::can_rewrite_url();
         $query_string = null;
 
         if($resource == 'themes'){
@@ -72,7 +81,7 @@ class FrontController extends Object{
             $use_clean_urls = true;
 		}
         
-        if($resource != null){
+        if($resource != null && strpos($resource, '.') === false){
             $resource .= '/';
         }        
 		$resource_id = 0;
@@ -89,7 +98,9 @@ class FrontController extends Object{
         
 		$url = '';
         if(!$use_clean_urls){
-            $resource = 'index.php?r=' . $resource;
+			if($resource !== null){
+	            $resource = self::index_script() . $resource;
+			}
         }
 		if($resource_id > 0){
 			$resource .= $resource_id;
@@ -142,6 +153,11 @@ class FrontController extends Object{
 		}
 		return $r;
 	}
+	
+	// This method assumes that the file type will be appended to the end of the resource like resource.html
+	// It also restricts the file types to solve the problem where a uniqid (with a "." in it) is used as 
+	// the resource id in the url like resource/444b23bsd22.12323 is used. If the file types are not restricted
+	// then this uri will break, resulting in a page not found 404.
 	public function parseForFileType($parts){
 		$file_type = 'html';
 		if($parts != null && count($parts) > 0){
@@ -151,11 +167,18 @@ class FrontController extends Object{
 				$file_type = $extension[count($extension) - 1];
 			}
 		}
-		if(!in_array($file_type, array('html', 'json', 'xml', 'js', 'atom', 'rss'))){
+		if(!in_array($file_type, array('phtml', 'html', 'json', 'xml', 'js', 'atom', 'rss'))){
 			$file_type = 'html';
 		}
 		return $file_type;
 	}
+	
+	// This method assumes that parts will be an array of the url pieces separated by '/'. The idea being
+	// you can pass a resource id like resource/1 as the url. In addition, this method should handle the case
+	// where the url is like resource.html?id=1 since of course, that's a valid expectation. In this case,
+	// the assumption will be that the FrontController's context is set to $_REQUEST and it will contain
+	// the "id". So I'll check for the "?" in the $parts array and remove it when determining the message
+	// while checking the $context['id'] for the resource id.
 	public function parseForMessageAndResourceId($resource, $parts){
 		$message = strtolower($_SERVER['REQUEST_METHOD']);
 		$resource_id = 0;
@@ -171,15 +194,35 @@ class FrontController extends Object{
 			$message = $_method;
 		}
 		$class_name = get_class($resource);
+		$temp = '';
 		if($parts != null && count($parts) > 0){
-			$message .= '_' . $parts[0];
+			$temp = $parts[0];
+			if(strpos($parts[0], '?')){
+				$temp = explode('?', $parts[0]);
+				$temp = array_shift($temp);
+			}
+			if(strpos($temp, '.')){
+				$temp = explode('.', $parts[0]);
+				$temp = array_shift($temp);
+			}
+			
+			$message .= '_' . $temp;
+			
 		}else{
 			$message .= '_' . 'index';
 		}
+
 		if(count($parts) > 0){
 			$resource_id = $parts[count($parts) - 1];
+			if(strpos($resource_id, '?') !== false){
+				if($this->context['id'] != null){
+					$resource_id = $this->context['id'];
+				}else{
+					$resource_id = 0;
+				}
+			}
 		}
-
+		
 		if($parts != null && count($parts) > 1){
 			$reflector = new ReflectionClass($class_name);
 			$ubounds = count($parts);
@@ -198,10 +241,16 @@ class FrontController extends Object{
 		}
 		return array('message'=>$message, 'resource_id'=>$resource_id);
 	}
-
-	public function execute(){		
+	private static $root_path;
+	public static function get_root_path($file){
+		return str_replace('lib/FrontController.php', $file, __FILE__);
+	}
+	public static function get_virtual_path(){
+		return str_replace('/index.php', '', $_SERVER['SCRIPT_FILENAME']);
+	}
+	public $original_resource_name;
+	public function execute(){
  		session_start();
-		
 		$resource_path = 'resources/';
 		$r = (array_key_exists('r', $_GET) ? $_GET['r'] : null);
 		if($r == null){
@@ -211,14 +260,17 @@ class FrontController extends Object{
 		// $parts contains empty items. I want to remove those items.
 		$parts = array_filter($parts, array($this, 'isEmpty'));
 		$r = $this->parseForResourceName($r, $parts);
+		$this->original_resource_name = $r;
 		$file_type = $this->parseForFileType($parts);
 		$resource_name = String::camelize($r);
 		$class_name = sprintf('%sResource', $resource_name);
 		$file = $resource_path . $class_name . '.php';
 		// Pass all versions of the controller name to the controller. See if it's pluralized first.
+		$file = self::get_root_path($file);
 		if(!file_exists($file)){
 			$singular_version = sprintf('%sResource', String::singularize($resource_name));
 			$file = $resource_path . $singular_version . '.php';
+			$file = self::get_root_path($file);
 			if(file_exists($file)){
 				$class_name = $singular_version;
 			}
@@ -226,16 +278,20 @@ class FrontController extends Object{
 		if(file_exists($file)){
 			class_exists($class_name) || require($file);
 			try{
-				$obj = new $class_name();		
+				$obj = new $class_name(array('original_resource_name'=>$this->original_resource_name));		
 				$obj->file_type = $file_type;
 				$result = $this->parseForMessageAndResourceId($obj, $parts);
 				$method = $result['message'];
+				if(strpos($method, '.') !== false){
+					$method = explode('.', $method);
+					$method = $method[0];
+				}
 				$resource_id = $result['resource_id'];
 				if(!ob_start('ob_gzhandler')===false){
 					ob_start();
 				}
 
-				try{
+				try{					
 					$output = Resource::sendMessage($obj, $method, $resource_id);
 				}catch(Exception $e){
 					self::notify('exceptionHasOccured', $this, $e);
@@ -277,7 +333,7 @@ class FrontController extends Object{
 			return $output;
 		}else{
 			// Send a 404 notification so that something else can handle it.
-			self::notify('resourceOrMethodNotFoundDidOccur', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
+			self::notify('resourceOrMethodNotFoundDidOccur', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'server'=>$_SERVER));
 			//throw new Exception('404: Not found - '. $_SERVER['QUERY_STRING'], 404);
 		}
 	}
