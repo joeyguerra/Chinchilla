@@ -290,7 +290,7 @@ class FrontController extends Object{
 			class_exists($class_name) || require($file);
 			try{
 				$obj = new $class_name(array('original_resource_name'=>$this->original_resource_name));		
-				$obj->file_type = $file_type;
+				$obj->file_type = $file_type;				
 				$result = $this->parseForMessageAndResourceId($obj, $parts);
 				$method = $result['message'];
 				if(strpos($method, '.') !== false){

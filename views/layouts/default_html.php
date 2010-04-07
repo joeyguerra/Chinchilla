@@ -20,6 +20,11 @@
 		<header id="header">
 			<h1 id="logo"><a href="<?php echo FrontController::urlFor(null);?>" title="Go to the Chinchilla home page"><span>Chinchilla</span></a></h1>
 			<p id="slogan">a RESTful framework</p>
+			<nav>
+				<a href="<?php echo FrontController::urlFor('example.html');?>" title="example on how to use the Chinchilla framework to return HTML">example.html</a>
+				<a href="<?php echo FrontController::urlFor('example.xml');?>" title="example on how to use the Chinchilla framework to return XML">example.xml</a>
+				
+			</nav>			
 		</header>
 		<section id="body">
 			{$output}

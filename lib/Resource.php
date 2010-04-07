@@ -26,7 +26,7 @@ class Resource extends Object{
 	*/
 	protected function renderView($__file, $__data = null, $__file_type = null){
 		$this->file_type = ($this->file_type == null ? 'html' : $this->file_type);
-		if($__file != null){
+		if($__file != null){			
 			$__r = new ReflectionClass(get_class($this));
 			$__properties = array();
 			foreach($__r->getProperties() as $property){
