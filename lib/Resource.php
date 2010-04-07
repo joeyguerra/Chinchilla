@@ -12,6 +12,7 @@ class Resource extends Object{
 	public $resource_css;
 	public $title;
 	public $description;
+	public $keywords;
 	public $file_type;
 	public $redirect_parameters;
 	protected function redirectTo($resource_name, $query_parameters = null, $make_secure = false){
@@ -95,7 +96,7 @@ class Resource extends Object{
 			}else if(file_exists($__default_view)){
 				require($__default_view);
 			}else{
-				throw new Exception("404: File not found", 404);
+				throw new Exception(sprintf("404: File not found, %s.%s", $__file, $this->file_type), 404);
 			}
 						
 			
@@ -150,40 +151,7 @@ class Resource extends Object{
 		}
 		return $output;
 	}
-	
-	protected function replace_output_with_object($output, $obj){
-		if(!is_array($array)){
-			if($array === 'true'){
-				$array = true;
-			}
-			
-			if($array === 'false'){
-				$array = false;
-			}
-			
-			return $array;
-		}
 		
-		if($obj != null && is_object($obj)){
-			foreach($array as $key=>$value){
-				$r = new ReflectionClass(get_class($obj));
-				$property = $r->getProperty($key);
-				if($property != null && $property->isPublic()){
-					if(is_object($property->getValue($obj))){
-						$obj->{$key} = self::initWithArray($property->getValue($obj), $value);
-						//$property->setValue($obj, self::initWithArray($property->getValue($obj), $value));
-					}else{
-						$obj->{$key} = self::initWithArray(null, $value);
-						//$property->setValue($obj, self::initWithArray(null, $value));
-					}
-				}
-			}
-		}else{
-			$obj = $array;
-		}
-		return $obj;
-	}
-	
 	public static function sendMessage($obj, $message, $resource_id = 0){
 		$class_name = get_class($obj);
 		$reflector = new ReflectionClass($class_name);
@@ -240,14 +208,14 @@ class Resource extends Object{
 		if(array_key_exists($name, $_FILES)){
 			$obj = $_FILES[$name];
 		}elseif(array_key_exists($name, $_REQUEST)){
-			$value = self::sanitize($_REQUEST[$name]);
+			$value = $_REQUEST[$name];
 			// 2009-08-26, jguerra: Arrays are used to populate 2 different types of parameters. The 1st is to populate
 			// a parameter that's an object. Where the key is the object's property name; e.g an input field name='user[name]' 
 			// maps to a parameter called $user which is an instance of a class User with a public property called $name.
 			// This logic should populate $user->name = the value in $_REQUEST['user[name]'];
 			// The 2nd situation is for an input field name='photo_names[]'. This code should look for a parameter named 
 			// photo_names that is an array data type and populate it with the values from $_REQUEST['photo_names'].
-			if(is_array($value)){
+			if(is_array($value)){				
 				// This block is for the situation where the parameter is an object, not an array.
 				if($ref_class != null){
 					$class_name = $ref_class->getName();
@@ -255,10 +223,13 @@ class Resource extends Object{
 					$obj = self::initWithArray($obj, $value);
 				}else{
 					// and this block is for the situation where the value from the request is an indexed array.
+					foreach($value as $key=>$val){
+						$value[$key] = self::sanitize_magic_quotes($val);
+					}
 					$obj = $value;
 				}
-			}else{
-				$obj = self::valueWithCast($value, ($param->isDefaultValueAvailable() ? $param->getDefaultValue() : null));
+			}else{				
+				$obj = self::valueWithCast(self::sanitize_magic_quotes($value), ($param->isDefaultValueAvailable() ? $param->getDefaultValue() : null));
 			}
 		}else{// This else block handles the case where you want to populate an object with a form that has the object property names
 			// as their field names. For instance, I want to save a "post" and the form field names match the attributes on a Post object.
@@ -269,7 +240,7 @@ class Resource extends Object{
 					if($ref_class->hasProperty($key)){
 						$prop = $ref_class->getProperty($key);
 						if($prop != null){
-							$obj->{$key} = self::valueWithCast(self::sanitize($value), null);
+							$obj->{$key} = self::valueWithCast(self::sanitize_magic_quotes($value), null);
 							$is_null = false;
 						}
 					}
@@ -281,7 +252,7 @@ class Resource extends Object{
 				if($id > 0 && $ref_class->hasProperty('id')){
 					$prop = $ref_class->getProperty('id');
 					if($prop != null){
-						$obj->{'id'} = self::valueWithCast(self::sanitize($id), null);
+						$obj->{'id'} = self::valueWithCast(self::sanitize_magic_quotes($id), null);
 						$is_null = false;
 					}
 				}
@@ -293,19 +264,20 @@ class Resource extends Object{
 		}
 		return $obj;
 	}
-	public static function sanitize($value){
+	public static function sanitize_magic_quotes($value){
 		if(function_exists('get_magic_quotes_gpc')){
 			if(get_magic_quotes_gpc()){
 				if(is_array($value)){
-					array_walk_recursive($value, array('Resource', 'sanitize'));
+					array_walk_recursive($value, array('Resource', 'sanitize_magic_quotes'));
 				}else{
-					$value = preg_replace('/[\\\\]*/', '', $value);
+					$value = stripslashes($value);
 				}
 			}
 		}
 		return $value;
 	}
 	
+	// This function initializes an object with an array. It checks for getters and setters that map to the names in the request
 	private static function initWithArray($obj, $array){
 		$setter = null;
 		$getter = null;
@@ -336,6 +308,7 @@ class Resource extends Object{
 					if(is_object($obj->{$getter}())){
 						$obj->{$key} = self::initWithArray($obj->{$getter}(), $value);
 					}else{
+						$value = self::sanitize_magic_quotes($value);
 						$obj->{$key} = self::initWithArray(null, $value);	
 					}
 				}
@@ -368,9 +341,6 @@ class Resource extends Object{
 			$result = true;
 		}elseif($value == 'true' || $value == 'false'){
 			$result = ($value == 'true');
-		}else{
-			if(function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc())
-				$result = stripslashes($value);
 		}
 		return $result;
 	}

@@ -51,6 +51,19 @@ class FrontController extends Object{
 		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
 		header('Content-type: application/json;charset=UTF-8');
 	}
+	public static function sendHtmlHeaders($length){
+		header('Cache-Control: no-cache, must-revalidate');
+		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
+		header('Content-type: text/html;charset=UTF-8');
+		header('Content-length: ' . $length);
+	}
+	public static function send301Header($url){
+		header('Cache-Control: no-cache, must-revalidate');
+		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
+		header('Content-type: application/json;charset=UTF-8');
+		header('HTTP/1.1 301 Moved Permanently');
+		header("Location: $url");
+	}
 	public static function themePath(){
 		$config = null;
 		if(class_exists('AppConfiguration')){
@@ -265,17 +278,15 @@ class FrontController extends Object{
 		$resource_name = String::camelize($r);
 		$class_name = sprintf('%sResource', $resource_name);
 		$file = $resource_path . $class_name . '.php';
+		
 		// Pass all versions of the controller name to the controller. See if it's pluralized first.
-		$file = self::get_root_path($file);
+		$singular_version = sprintf('%sResource', String::singularize($resource_name));
+		$file = $resource_path . $singular_version . '.php';
 		if(!file_exists($file)){
-			$singular_version = sprintf('%sResource', String::singularize($resource_name));
-			$file = $resource_path . $singular_version . '.php';
 			$file = self::get_root_path($file);
-			if(file_exists($file)){
-				$class_name = $singular_version;
-			}
 		}
 		if(file_exists($file)){
+			$class_name = $singular_version;
 			class_exists($class_name) || require($file);
 			try{
 				$obj = new $class_name(array('original_resource_name'=>$this->original_resource_name));		
@@ -294,7 +305,18 @@ class FrontController extends Object{
 				try{					
 					$output = Resource::sendMessage($obj, $method, $resource_id);
 				}catch(Exception $e){
-					self::notify('exceptionHasOccured', $this, $e);
+					switch($e->getCode()){
+						case(401):
+							self::notify('unauthorizedRequestHasOccurred', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
+							break;
+						case(301):
+							$matches = String::find('/href\=\"(.*)\"/', $e->getMessage());
+							self::send301Header($matches[1]);
+							break;
+						default:
+							break;
+					}
+					throw $e;
 				}
 				if($obj->redirect_parameters != null){
 					self::redirectTo($obj->redirect_parameters['resource_name'], $obj->redirect_parameters['query_parameters'], $obj->redirect_parameters['make_secure']);
@@ -302,9 +324,7 @@ class FrontController extends Object{
 					Resource::sendMessage($obj, 'didFinishLoading');			
 				}
 			}catch(Exception $e){
-				if($e->getCode() == 401){
-					self::notify('unauthorizedRequestHasOccurred', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
-				}
+				$output .= self::notify('exceptionHasOccured', $this, $e);
 			}
 			ob_end_flush();
 			$output = $this->trim($output);
@@ -328,6 +348,7 @@ class FrontController extends Object{
 					self::sendXmlHeaders('atom');
 					break;
 				default:
+					self::sendHtmlHeaders(strlen($output));
 					break;
 			}
 			return $output;

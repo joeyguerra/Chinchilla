@@ -117,9 +117,10 @@
 
 	        // check for matches using regular expressions
 	        foreach ( self::$singular as $pattern => $result )
-	        {
-	            if ( preg_match( $pattern, $string ) )
-	                return self::replace( $pattern, $result, $string );
+	        {		
+	            if ( preg_match( $pattern, $string ) ){
+					return self::replace( $pattern, $result, $string );
+				}
 	        }
 
 	        return $string;
@@ -214,6 +215,11 @@
 			$string = preg_replace('/[\\r?|\\n?]+/', '', $string);
 			$string = preg_replace('/[\\t?]+/', '', $string);
 			return $string;
+		}
+		public static function find($pattern, $value){
+			$matches = array();
+			$did_match = preg_match($pattern, $value, &$matches);
+			return $matches;
 		}
 		public static function stringForUrl($string){
 			$string = strtolower($string);
