@@ -354,7 +354,7 @@ class FrontController extends Object{
 			return $output;
 		}else{
 			// Send a 404 notification so that something else can handle it.
-			self::notify('resourceOrMethodNotFoundDidOccur', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'server'=>$_SERVER));
+			self::notify('resourceOrMethodNotFoundDidOccur', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'server'=>$_SERVER));			
 			//throw new Exception('404: Not found - '. $_SERVER['QUERY_STRING'], 404);
 		}
 	}
