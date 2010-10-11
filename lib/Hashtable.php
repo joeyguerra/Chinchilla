@@ -6,6 +6,9 @@
 		public function __destruct(){}
 		
 		private $_list;
+		public function getList(){
+			return $this->_list;
+		}
 		public function offsetExists($key){
 			return array_key_exists($key, $this->_list);
 		}
@@ -19,10 +22,8 @@
 		public function offsetSet($key, $val){
 			$this->_list[$key] = $val;
 		}
-		public function each($callback){
-			foreach($this->_list as $key=>$value){
-				$callback[0]->$callback[1]($key, $value);
-			}
+		public function length(){
+			return count($this->_list);
 		}
 	}
 ?>

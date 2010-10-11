@@ -198,6 +198,15 @@
 			}
 			return $list;
 		}
+		public static function toArray($csvString){
+			$list = self::explodeAndTrim($csvString);
+			$new_list = array();
+			foreach($list as $value){
+				list($key, $val) = explode('=', $value);
+				$new_list[$key] = $val;
+			}
+			return $new_list;
+		}
 		public static function decamelize($string){
 			if(strlen(trim($string)) > 0){
 				return strtolower(ltrim(preg_replace('/([A-Z])+/', '_$1', $string), '_'));
@@ -218,7 +227,7 @@
 		}
 		public static function find($pattern, $value){
 			$matches = array();
-			$did_match = preg_match($pattern, $value, &$matches);
+			$did_match = preg_match($pattern, $value, $matches);
 			return $matches;
 		}
 		public static function stringForUrl($string){
@@ -230,12 +239,39 @@
 			$string = preg_replace( array("`[^a-z0-9]`i","`[-]+`") , "-", $string);
 			return strtolower(trim($string, '-'));
 		}
+		public static function toLower($value){
+			return strtolower($value);
+		}
 		public static function encrypt($value){
 			return sha1($value);
 		}
-		public static function stripHtmlTags($html){
-			return strip_tags($html);
+		public static function stripHtmlTags($html, $allowed_tags = null){
+			return strip_tags($html, $allowed_tags);
 		}
-		
+		public static function truncate($text, $length, $suffix = '...'){
+			$string = $text;
+			if(strlen($string) > $length){
+				$string = substr($string, 0, $length - 1) . $suffix;
+			}
+			return $string;
+		}
+		public static function toString($val){
+			if(is_array($val)){
+				return implode(',', $val);
+			}
+			return $val;
+		}
+		public static function sanitize($val){
+			return filter_var($val, FILTER_SANITIZE_STRING);
+		}
+		public static function isNullOrEmpty($val){
+			if($val === null){
+				return true;
+			}else if(strlen($val) === 0){
+				return true;
+			}else{
+				return false;
+			}
+		}
 	}
 ?>

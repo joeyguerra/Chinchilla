@@ -14,7 +14,8 @@
 		<![endif]-->
 		<link rel="stylesheet" type="text/css" href="<?php echo FrontController::urlFor('themes');?>css/default.css" />
 		{$resource_css}
-		{$resource_js}	
+		{$resource_js}
+		<script type="text/javascript" src="<?php echo FrontController::urlFor('js');?>default.js"></script>
     </head>
     <body>
 		<header id="header">
@@ -23,14 +24,43 @@
 			<nav>
 				<a href="<?php echo FrontController::urlFor('example.html');?>" title="example on how to use the Chinchilla framework to return HTML">example.html</a>
 				<a href="<?php echo FrontController::urlFor('example.xml');?>" title="example on how to use the Chinchilla framework to return XML">example.xml</a>
-				
+				<a href="<?php echo FrontController::urlFor('example.json');?>" title="example on how to use the Chinchilla framework to return JSON">example.json</a>
+				<a href="<?php echo FrontController::urlFor('example.json');?>" id="ajax_link" title="example on how to use the Chinchilla framework to return JSON for an AJAX request">ajax example.json</a>
 			</nav>			
 		</header>
 		<section id="body">
+			<div id="user_message" style="display:none;"></div>
 			{$output}
 		</section>
 		<footer id="footer">
-			<small>&copy; Joey Guerra</small>
+			<small>Chinchilla</small>
 		</footer>
     </body>
+	<script type="text/javascript">
+	var user_message = chin.get_element('user_message');
+		function on_return(request){
+			var response = chin.to_json(request.responseText);
+			user_message.innerHTML = decodeURIComponent(response.message.replace(/\+/gi, ' '));
+		}
+		
+		function clicked(e){
+			chin.stop(e);
+			if(chin.is_hidden(user_message)){
+				var request = new chin.ajax({method: 'get', DONE: [window, on_return]});
+				request.send(e.target.href);
+				chin.show(user_message);
+			}else{
+				chin.hide(user_message);
+			}
+		}
+		
+		chin.main = function(){
+			var link = chin.get_element('ajax_link');
+			var user_message = chin.get_element('user_message');
+			chin.observe(link, 'click', clicked);
+		}
+
+		chin.observe(window, 'load', chin.main);
+		
+	</script>
 </html>

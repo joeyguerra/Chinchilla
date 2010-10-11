@@ -16,3 +16,13 @@ h1, h2, h3, h4, h5, h6{
 	left: 10%;
 	right: 10%;
 }
+
+#user_message{
+	border: solid 1px rgb(0,0,0);
+	border-radius: 10px;
+	-webkit-border-radius: 10px;
+	-moz-border-radius: 10px;
+	background: rgb(0,0,0);
+	color: rgb(255,255,255);
+	padding: 10px;
+}

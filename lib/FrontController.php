@@ -1,76 +1,281 @@
 <?php
 class_exists('String') || require('lib/String.php');
 class_exists('Object') || require('lib/Object.php');
-if(file_exists('AppConfiguration.php')){
-	class_exists('AppConfiguration') || require('AppConfiguration.php');	
+class_exists('PluginController') || require('lib/PluginController.php');
+class HttpStatus{
+	public function __construct($code){
+		$this->code = $code;
+		switch($code){
+			case(200):
+				$this->message = 'OK';
+				break;
+			case(201):
+				$this->message = 'Created';
+				break;
+			case(202):
+				$this->message = 'Accepted';
+				break;
+			case(203):
+				$this->message = 'Non-Authoritative Information';
+				break;
+			case(204):
+				$this->message = 'No Content';
+				break;
+			case(205):
+				$this->message = 'Reset Content';
+				break;
+			case(206):
+				$this->message = 'Partial Content';
+				break;
+			case(301):
+				$this->message = 'Moved Permanently';
+				break;
+			case(302):
+				$this->message = 'Found';
+				break;
+			case(303):
+				$this->message = 'See Other';
+				break;	
+			case(304):
+				$this->message = 'Not Modified';
+				break;
+			case(305):
+				$this->message = 'Use Proxy';
+				break;		
+			case(307):
+				$this->message = 'Temporary Redirect';
+				break;
+			case(400):
+				$this->message = 'Bad Request';
+				break;
+			case(401):
+				$this->message = 'Unauthorized';
+				break;
+			case(402):
+				$this->message = 'Payment Required';
+				break;
+			case(403):
+				$this->message = 'Forbidden';
+				break;
+			case(404):
+				$this->message = 'Not Found';
+				break;
+			case(405):
+				$this->message = 'Method Not Allowed';
+				break;
+			case(406):
+				$this->message = 'Not Acceptable';
+				break;
+			case(407):
+				$this->message = 'Proxy Authentication Required';
+				break;
+			case(408):
+				$this->message = 'Request Timeout';
+				break;
+			case(409):
+				$this->message = 'Conflict';
+				break;
+			case(410):
+				$this->message = 'Gone';
+				break;
+			case(411):
+				$this->message = 'Length Required';
+				break;
+			case(412):
+				$this->message = 'Precondition Failed';
+				break;
+			case(413):
+				$this->message = 'Request Entity Too Large';
+				break;
+			case(414):
+				$this->message = 'Request Entity Too Long';
+				break;
+			case(415):
+				$this->message = 'Unsupported Media Type';
+				break;
+			case(416):
+				$this->message = 'Requested Range Not Satisfiable';
+				break;
+			case(417):
+				$this->message = 'Expectation Failed';
+				break;
+			case(500):
+				$this->message = 'Internal Server Error';
+				break;
+			case(501):
+				$this->message = 'Not Implemented';
+				break;
+			case(502):
+				$this->message = 'Bad Gateway';
+				break;
+			case(503):
+				$this->message = 'Service Unavailable';
+				break;
+			case(504):
+				$this->message = 'Gateway Timeout';
+				break;
+			case(505):
+				$this->message = 'HTTP Version Not Supported';
+				break;
+		}
+	}
+	public $code;
+	public $message;
 }
 class FrontController extends Object{
 	public function __construct($context){
-		if(class_exists('AppConfiguration')){
-			$this->config = new AppConfiguration();
-		}else{
-			$this->config = null;
-		}
+		self::$start_time = microtime(true);
 		$this->context = $context;
 		$this->initSitePath();
 	}
 	public function __destruct(){}
-	
+	public static $start_time;
+	public static $end_time;
+	public $request_time;
 	const UNAUTHORIZED = '401: Unauthorized';
-	private $config;
+	const NOTFOUND = '404: Not Found';
 	public $context;
 	public static $site_path;
 	public static $error_html;
+	public static $delegate;
+
 	
-	public static function sendRssHeaders(){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: application/rss+xml;charset=UTF-8');
+	public static function sendHeaders($headers){
+		foreach($headers as $key=>$value){
+			header(sprintf("%s: %s", $key, $value));
+		}		
 	}
-	public static function sendXmlHeaders($type){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
+	public static function sendStatusHeaders($status){
+		header($_SERVER["SERVER_PROTOCOL"].' ' . $status->code . ' ' . $status->message, true,  $status->code);		
+	}
+	
+	public static function sendXmlHeaders($status, $type){
+		$headers = array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT');
+
 		if($type == null){
-			header('Content-type: text/xml;charset=UTF-8');
+			$headers['Content-type'] = 'text/xml;charset=UTF-8';
 		}else{
-			header('Content-type: application/' . $type . '+xml;charset=UTF-8');
+			$headers['Content-type'] = 'application/' . $type . '+xml;charset=UTF-8';
 		}
+		self::sendHeaders($headers);
+		self::sendStatusHeaders($status);
 	}
-	public static function sendJsonpHeaders(){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: application/javascript;charset=UTF-8');
+	public static function sendJsonpHeaders($status){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'application/javascript;charset=UTF-8'));
+		self::sendStatusHeaders($status);
 	}
-	public static function sendJavascriptHeaders(){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: text/javascript;charset=UTF-8');
+	public static function sendJavascriptHeaders($status){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/javascript;charset=UTF-8'));
+		self::sendStatusHeaders($status);
 	}
-	public static function sendJsonHeaders(){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: application/json;charset=UTF-8');
+	public static function sendJsonHeaders($status){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'application/json;charset=UTF-8'));
+		self::sendStatusHeaders($status);
 	}
-	public static function sendHtmlHeaders($length){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: text/html;charset=UTF-8');
-		header('Content-length: ' . $length);
+	public static function sendHtmlHeaders($status, $length){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/html;charset=UTF-8'
+			, 'Content-length'=> $length));
+		self::sendStatusHeaders($status);
 	}
-	public static function send301Header($url){
-		header('Cache-Control: no-cache, must-revalidate');
-		header('Expires: Mon, 04 Oct 2004 10:00:00 GMT');
-		header('Content-type: application/json;charset=UTF-8');
-		header('HTTP/1.1 301 Moved Permanently');
+	public static function sendTextHeaders($status, $length){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/plain;charset=UTF-8'
+			, 'Content-length'=> $length));
+		self::sendStatusHeaders($status);
+	}
+	public static function send301Header($url, $length){
+		self::sendHeaders(array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/html;charset=UTF-8'
+			, 'Content-length'=> $length));
+		self::sendStatusHeaders(new HttpStatus(301));
 		header("Location: $url");
 	}
-	public static function themePath(){
+	public static function send201Header($url, $length, $headers = array()){
+		$default_headers = array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/html;charset=UTF-8'
+			, 'Content-length'=>$length
+		);
+		$headers = array_merge($default_headers, $headers);		
+		self::sendHeaders($headers);
+		self::sendStatusHeaders(new HttpStatus(201));
+		header("Location: $url");
+	}
+
+	public static function send204Header($headers = array()){
+		$default_headers = array(
+			'Cache-Control'=>'no-cache, must-revalidate'
+			, 'Expires'=>'Mon, 04 Oct 2004 10:00:00 GMT'
+			, 'Content-type'=>'text/html;charset=UTF-8'
+			, 'Content-length'=>0
+		);
+		$headers = array_merge($default_headers, $headers);		
+		self::sendHeaders($headers);
+		self::sendStatusHeaders(new HttpStatus(204));
+	}
+	public static function send401Headers($message, $realm){
+		header('WWW-Authenticate: Digest realm="'.$realm.'",qop="auth",nonce="'.uniqid().'",opaque="'.md5($realm).'"');
+		self::sendStatusHeaders(new HttpStatus(401));
+		die($message);
+	}
+	public static function send404Headers($message){
+		self::sendStatusHeaders(new HttpStatus(404));
+		self::sendHeaders(array('Status'=>$message));
+	}
+	public static function sendHeadersForFileType($status, $file_type, $length){
+		switch($file_type){
+			case('js'):
+				self::sendJavascriptHeaders($status);
+				break;
+			case('jsonp'):
+				self::sendJsonpHeaders($status);
+				break;
+			case('json'):
+				self::sendJsonHeaders($status);
+				break;
+			case('xml'):
+				self::sendXmlHeaders($status, null);
+				break;
+			case('rss'):
+				self::sendXmlHeaders($status, 'rss');
+				break;
+			case('atom'):
+				self::sendXmlHeaders($status, 'atom');
+				break;
+			case('txt'):
+				self::sendTextHeaders($status, $length);
+				break;
+			default:
+				self::sendHtmlHeaders($status, $length);
+				break;
+		}
+	}
+	public static function getThemePath(){
 		$config = null;
 		if(class_exists('AppConfiguration')){
 			$config = new AppConfiguration();
 		}
 		if($config != null){
-			return 'themes/' . $config->theme;
+			return 'themes/' . $config->getTheme();
 		}else{
 			return 'themes/default';
 		}
@@ -78,52 +283,26 @@ class FrontController extends Object{
 	public static function isSecure(){
 		return array_key_exists('HTTPS', $_SERVER);
 	}
-	public static function can_rewrite_url(){
-		return file_exists('.htaccess');
+	public static function canRewriteUrl(){
+		return file_exists(self::getRootPath('/.htaccess'));
 	}
 	public static function index_script(){
-		return 'index.php?r=';
+		return self::canRewriteUrl() ? null : 'index.php';
 	}
-	public static function urlFor($resource = null, $params = null, $make_secure = false){
-		$config = (class_exists('AppConfiguration') ? new AppConfiguration(null) : new Object());
-        $use_clean_urls = self::can_rewrite_url();
+	public static function urlFor($resource_name = null, $params = null, $make_secure = false){
+		$config = (class_exists('AppConfiguration') ? new AppConfiguration(null) : null);
+		$path = null;
+		if(stripos($resource_name, '/') !== false){
+			$path = explode('/', $resource_name);
+			$resource_name = $path[0];
+			array_shift($path);
+			$path = implode('/', $path);
+		}		
+        $use_clean_urls = self::canRewriteUrl();
         $query_string = null;
-
-        if($resource == 'themes'){
-			$resource = self::themePath();
-            $use_clean_urls = true;
-		}
-        
-        if($resource != null && strpos($resource, '.') === false){
-            $resource .= '/';
-        }        
-		$resource_id = 0;
-        if($params != null){
-			$query_string = array();
-			foreach($params as $key=>$val){
-				if($key == 'id'){
-					$resource_id = $val;
-				}else{
-					$query_string[] = sprintf('%s=%s', $key, $val);					
-				}
-			}
-		}
-        
-		$url = '';
-        if(!$use_clean_urls){
-			if($resource !== null){
-	            $resource = self::index_script() . $resource;
-			}
-        }
-		if($resource_id > 0){
-			$resource .= $resource_id;
-		}
-        if($query_string != null){
-			$resource .= ($use_clean_urls ? '?' : '&');
-            $resource .= implode('&', $query_string);
-        }
-		if($make_secure && $config != null && $config->ssl_path != null){
-			$url = sprintf('https://%s/%s', $config->ssl_path, $resource);
+		$resource_id = null;
+		if($make_secure && $config != null && strlen($config->ssl_path) > 0){
+			$url = sprintf('https://%s/%s', $config->ssl_path, $resource_name);
 		}else{
 			$site_path = self::$site_path;
 			if($make_secure){
@@ -131,23 +310,62 @@ class FrontController extends Object{
 			}else{
 				$site_path = str_replace('https:', 'http:', $site_path);
 			}
-			
-			$url = $site_path . $resource;
+		}
+
+		// Special folders that we don't want to handle resource requests for.
+        if(in_array($resource_name, array('themes', 'js', 'css', 'images'))){
+			$resource_name = ($resource_name === 'themes' ? self::getThemePath() . '/' : $resource_name . '/');
+            $use_clean_urls = true;
+			return $site_path . $resource_name;
+		}
+		
+        if($params != null){
+			$query_string = array();
+			foreach($params as $key=>$val){
+				if($key == 'id'){
+					$resource_id = $val;
+				}else{
+					$query_string[] = sprintf('%s=%s', $key, $val);
+				}
+			}
+		}
+        
+		$url = '';
+		if(!$use_clean_urls){
+			$resource_name = self::index_script() . '?r='. ($resource_name != null ? '' . $resource_name : null);
+		}else{
+	        $resource_name =  ($resource_name !== null ? $resource_name : null);
+		}
+		if($resource_id !== null){
+			$resource_name .= '/' . $resource_id;
+		}
+		if($path !== null){
+			$resource_name .= '/' . $path;
+		}
+        if($query_string != null){
+			$resource_name .= '&';
+            $resource_name .= implode('&', $query_string);
+        }
+		if(self::$delegate !== null && method_exists(self::$delegate, 'willSetUrlFor')){
+			$resource_name = self::$delegate->willSetUrlFor($resource_name);
+		}
+		if($make_secure && $config != null && strlen($config->ssl_path) > 0){
+			$url = sprintf('https://%s/%s', $config->ssl_path, $resource_name);
+		}else{			
+			$url = $site_path . $resource_name;
 		}
 		return $url;
 	}
 	private function initSitePath(){
         $is_secure = self::isSecure();
-		if($this->config != null && $this->config->site_path != null){
-			self::$site_path = sprintf('%s://%s/', ($is_secure ? 'https' : 'http'), $this->config->site_path);
+		$config = null;
+		if(class_exists('AppConfiguration')){
+			$config = new AppConfiguration();
+		}
+		if($config != null && strlen($config->site_path) > 0){
+			self::$site_path = sprintf('%s://%s/', ($is_secure ? 'https' : 'http'), $config->site_path);
 		}else{
-			$segments = explode('/', $_SERVER['SCRIPT_NAME']);
-			$virtual_path = null;
-			array_shift($segments);
-			array_pop($segments);
-			if(count($segments) > 0){
-				$virtual_path = implode('/', $segments);
-			}
+			$virtual_path = self::getVirtualPath();
 			self::$site_path = sprintf('%s://%s%s/', ($is_secure ? 'https' : 'http'), $_SERVER['SERVER_NAME'], ($virtual_path != null ? '/'.$virtual_path : null));
 		}
 	}
@@ -164,6 +382,14 @@ class FrontController extends Object{
 			$extension = explode('.', $r);
 			$r = $extension[0];
 		}
+		if(stripos($r, '?') !== false){
+			$query_string = explode('?', $r);
+			$r = $query_string[0];
+		}
+		if(stripos($r, '&') !== false){
+			$query_string = explode('&', $r);
+			$r = $query_string[0];			
+		}
 		return $r;
 	}
 	
@@ -178,6 +404,18 @@ class FrontController extends Object{
 			if(stripos($last_item, '.') !== false){
 				$extension = explode('.', $last_item);
 				$file_type = $extension[count($extension) - 1];
+				// And for environments like Dreamhost, where I had to add a ? to the script path (index.php?/$1) 
+				// in the htaccess file, I have to now do this because the $file_type might have ?parm=value
+				// with it.
+				if(stripos($file_type, '?') !== false){
+					$file_type = explode('?', $file_type);
+					$file_type = $file_type[0];
+				}
+				if(stripos($file_type, '&') !== false){
+					$file_type = explode('&', $file_type);
+					$file_type = $file_type[0];
+				}
+
 			}
 		}
 		if(!in_array($file_type, array('phtml', 'html', 'json', 'xml', 'js', 'atom', 'rss'))){
@@ -186,176 +424,143 @@ class FrontController extends Object{
 		return $file_type;
 	}
 	
-	// This method assumes that parts will be an array of the url pieces separated by '/'. The idea being
-	// you can pass a resource id like resource/1 as the url. In addition, this method should handle the case
-	// where the url is like resource.html?id=1 since of course, that's a valid expectation. In this case,
-	// the assumption will be that the FrontController's context is set to $_REQUEST and it will contain
-	// the "id". So I'll check for the "?" in the $parts array and remove it when determining the message
-	// while checking the $context['id'] for the resource id.
-	public function parseForMessageAndResourceId($resource, $parts){
-		$message = strtolower($_SERVER['REQUEST_METHOD']);
-		$resource_id = 0;
-		// During development, I was getting weird behavior on a login page posting to a secure server from
-		// an insecure request. So I added this message because the request method turned out to be options. 
-		// I have no idea why it was options.
-		if($message == 'options'){
-			error_log('method is options. You might want to check that you are loading the page via ssl');
-		}
-		// This is for browsers that don't support other methods like delete, put, trace, options.
-		$_method = (array_key_exists('_method', $_POST) ? strtolower($_POST['_method']) : null);
-		if($_method != null){
-			$message = $_method;
-		}
-		$class_name = get_class($resource);
-		$temp = '';
-		if($parts != null && count($parts) > 0){
-			$temp = $parts[0];
-			if(strpos($parts[0], '?')){
-				$temp = explode('?', $parts[0]);
-				$temp = array_shift($temp);
-			}
-			if(strpos($temp, '.')){
-				$temp = explode('.', $parts[0]);
-				$temp = array_shift($temp);
-			}
-			
-			$message .= '_' . $temp;
-			
+	/*
+		Root path is the absolute path to the file passed in relative to the app path. On my dev box, it's
+		"/Library/WebServer/Documents/6d/" + $file
+	*/
+	public static function getRootPath($file){
+		return String::replace('/\/index\.php/', $file, $_SERVER['SCRIPT_FILENAME']);
+	}
+	/*
+		This is the virtual directory that the app is located in. For instance, I have several sites set up
+		on my dev box like http://localhost/sixd/. The virtual path in this case is "sixd".
+	*/
+	public static function getVirtualPath(){
+		return String::replace('/^\//', '', str_replace(sprintf('%sindex.php', '/'), '', $_SERVER['SCRIPT_NAME']));
+	}
+	
+	/*
+		The app path is the path where the sixd code base is located. I have several sites that are running
+		the same sixd code base. AppPath is the location of the core code base. On my dev box, it's
+		"/Library/WebServer/Documents/sixd"
+	*/
+	public static function getAppPath($file){
+		return str_replace(sprintf('lib%sFrontController.php', DIRECTORY_SEPARATOR), $file, __FILE__);
+	}
+	public static function getThemedViewPath(){
+		return self::getRootPath() . '/' . self::getThemePath() . '/views/';
+	}
+	public static function getEncoding(){
+		$encoding = $_SERVER["HTTP_ACCEPT_ENCODING"];
+		if(headers_sent()){
+			$encoding = null;
+		}else if(strpos($encoding, 'x-gzip') !== false){
+			$encoding = 'x-gzip';
+		}else if(strpos($encoding,'gzip') !== false){
+			$encoding = 'gzip';
 		}else{
-			$message .= '_' . 'index';
+			$encoding = null; 
 		}
-
-		if(count($parts) > 0){
-			$resource_id = $parts[count($parts) - 1];
-			if(strpos($resource_id, '?') !== false){
-				if($this->context['id'] != null){
-					$resource_id = $this->context['id'];
-				}else{
-					$resource_id = 0;
-				}
-			}
+		return $encoding;
+	}
+	
+	public static function getPathInfo(){
+		$argv = array_key_exists('argv', $_SERVER) ? $_SERVER['argv'] : null;
+		$php_self = '';
+		$request_uri = $_SERVER['REQUEST_URI'];
+		if(array_key_exists('r', $_GET)){
+			$r = $_GET['r'];
+		}else if(stripos($argv[0], '?') !== false){
+			$argv = explode('?', $argv[0]);
+			$r = String::replace('/^\//', '', $argv[0]);
+		}else if(stripos($argv[0], '&') !== false){
+			$argv = explode('&', $argv[0]);
+			$r = String::replace('/^\//', '', $argv[0]);
+		}else{
+			$r = String::replace('/^\//', '', $argv[0]);
 		}
-		
-		if($parts != null && count($parts) > 1){
-			$reflector = new ReflectionClass($class_name);
-			$ubounds = count($parts);
-			$temp_message = $message;
-			// This is an example where tests unveiled a possible problem. I had set $index = 0, but when I created and ran tests for this method, it exposed a bug where the first item in parts was the resource and shouldn't be part of the message.
-			for($index=1;$index<$ubounds; $index++){
-				$temp_message .= '_' . $parts[$index];
-				if($reflector->hasMethod($temp_message)){
-					$message = $temp_message;
-					if($ubounds > $index){
-						$resource_id = $parts[$ubounds-1];
-					}
-					break;
-				}
-			}
-		}
-		return array('message'=>$message, 'resource_id'=>$resource_id);
+		return $r;
 	}
-	private static $root_path;
-	public static function get_root_path($file){
-		return str_replace('lib/FrontController.php', $file, __FILE__);
-	}
-	public static function get_virtual_path(){
-		return str_replace('/index.php', '', $_SERVER['SCRIPT_FILENAME']);
-	}
-	public $original_resource_name;
 	public function execute(){
- 		session_start();
+		$output = null;
 		$resource_path = 'resources/';
-		$r = (array_key_exists('r', $_GET) ? $_GET['r'] : null);
+		$path_info = self::getPathInfo();
+		if(self::$delegate !== null && method_exists(self::$delegate, 'willExecute')){
+			$path_info = self::$delegate->willExecute($path_info);
+		}
+		//echo '<br />' . $path_info;
+		$parts = explode('/', $path_info);
+		$r = null;
+		$url_parts = array();
+		if($parts !== null && count($parts) > 0){
+			$parts = array_filter($parts, array($this, 'isEmpty'));
+			foreach($parts as $value){
+				$url_parts[] = $value;
+			}
+			if(count($url_parts) > 0){
+				$r = $url_parts[0];				
+			}
+		}
 		if($r == null){
 			$r = 'index';
 		}
-		$parts = explode('/', $r);
-		// $parts contains empty items. I want to remove those items.
-		$parts = array_filter($parts, array($this, 'isEmpty'));
-		$r = $this->parseForResourceName($r, $parts);
-		$this->original_resource_name = $r;
-		$file_type = $this->parseForFileType($parts);
-		$resource_name = String::camelize($r);
+		$r = $this->parseForResourceName($r, $url_parts);
+		$file_type = $this->parseForFileType($url_parts);
+		$resource_name = ucwords($r);
 		$class_name = sprintf('%sResource', $resource_name);
 		$file = $resource_path . $class_name . '.php';
-		
-		// Pass all versions of the controller name to the controller. See if it's pluralized first.
-		$singular_version = sprintf('%sResource', String::singularize($resource_name));
-		$file = $resource_path . $singular_version . '.php';
 		if(!file_exists($file)){
-			$file = self::get_root_path($file);
+			$file = self::getAppPath($file);
 		}
-		if(file_exists($file)){
-			$class_name = $singular_version;
+		$method = strtolower((array_key_exists('_method', $_REQUEST) ? $_REQUEST['_method'] : $_SERVER['REQUEST_METHOD']));
+		$plugins = PluginController::getPlugins('plugins', 'Resource');
+		foreach($plugins as $plugin){
+			if($plugin->canHandle($class_name, $method)){
+				$output .= $plugin->execute($class_name, $method, $url_parts);
+			}
+		}		
+		if($output === null && file_exists($file)){
 			class_exists($class_name) || require($file);
+			ob_start();
 			try{
-				$obj = new $class_name(array('original_resource_name'=>$this->original_resource_name));		
-				$obj->file_type = $file_type;				
-				$result = $this->parseForMessageAndResourceId($obj, $parts);
-				$method = $result['message'];
-				if(strpos($method, '.') !== false){
-					$method = explode('.', $method);
-					$method = $method[0];
-				}
-				$resource_id = $result['resource_id'];
-				if(!ob_start('ob_gzhandler')===false){
-					ob_start();
-				}
-
-				try{					
-					$output = Resource::sendMessage($obj, $method, $resource_id);
+				$this->resource = new $class_name(array('url_parts'=>$url_parts));		
+				$this->resource->file_type = $file_type;
+				try{
+					$output = Resource::sendMessage($this->resource, $method, null);
 				}catch(Exception $e){
 					switch($e->getCode()){
 						case(401):
-							self::notify('unauthorizedRequestHasOccurred', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
+							self::$delegate->unauthorizedRequestHasOccurred($this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING']));
 							break;
 						case(301):
 							$matches = String::find('/href\=\"(.*)\"/', $e->getMessage());
-							self::send301Header($matches[1]);
+							self::send301Header($matches[1], strlen($e->getMessage()));
 							break;
 						default:
 							break;
 					}
 					throw $e;
 				}
-				if($obj->redirect_parameters != null){
-					self::redirectTo($obj->redirect_parameters['resource_name'], $obj->redirect_parameters['query_parameters'], $obj->redirect_parameters['make_secure']);
-				}else{
-					Resource::sendMessage($obj, 'didFinishLoading');			
-				}
-			}catch(Exception $e){
-				$output .= self::notify('exceptionHasOccured', $this, $e);
-			}
-			ob_end_flush();
+			}catch(Exception $e){				
+				$output .= self::$delegate->exceptionHasOccured($this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'exception'=>$e));
+			}			
 			$output = $this->trim($output);
-			switch($file_type){
-				case('js'):
-					self::sendJavascriptHeaders();
-					break;
-				case('jsonp'):
-					self::sendJsonpHeaders();
-					break;
-				case('json'):
-					self::sendJsonHeaders();
-					break;
-				case('xml'):
-					self::sendXmlHeaders(null);
-					break;
-				case('rss'):
-					self::sendXmlHeaders('rss');
-					break;
-				case('atom'):
-					self::sendXmlHeaders('atom');
-					break;
-				default:
-					self::sendHtmlHeaders(strlen($output));
-					break;
-			}
+			self::$end_time = microtime(true);
+			$status = $this->resource !== null && $this->resource->status !== null ? $this->resource->status : new HttpStatus(200);
+			self::sendHeadersForFileType($status, $file_type, strlen($output));
+			ob_end_flush();
+			Resource::sendMessage($this->resource, 'didFinishLoading');
+			return $output;
+		}else if($output !== null){
 			return $output;
 		}else{
-			// Send a 404 notification so that something else can handle it.
-			self::notify('resourceOrMethodNotFoundDidOccur', $this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'server'=>$_SERVER));			
-			//throw new Exception('404: Not found - '. $_SERVER['QUERY_STRING'], 404);
+			$output = self::$delegate->resourceOrMethodNotFoundDidOccur($this, array('file_type'=>$file_type, 'query_string'=>$_SERVER['QUERY_STRING'], 'server'=>$_SERVER, 'url_parts'=>$url_parts));
+			if($output === null){
+				self::send404Headers('Resource not found');
+			}else{
+				self::sendHeadersForFileType(new HttpStatus(200), $file_type, strlen($output));
+				return $output;
+			}
 		}
 	}
 	private function trim($text){
@@ -364,7 +569,7 @@ class FrontController extends Object{
 		$temp = '';
 		for($i=0; $i < $upper_bounds; $i++){
 			$temp = trim($lines[$i]);
-			if(!empty($temp)){
+			if($temp !== null && strlen($temp) > 0){
 				$lines[$i] = $temp;
 			}
 		}
@@ -384,7 +589,9 @@ class FrontController extends Object{
 		self::setNeedsToRedirectRaw($referer . $appendValue, false);
 	}
 	public static function setNeedsToRedirectRaw($url){
+		header('HTTP/1.1 303 See Other');		
 		header(sprintf('Location: %s', $url));
+		exit;
 	}
 
 	public static function redirectTo($url, $params = null, $securely = false){
@@ -392,7 +599,7 @@ class FrontController extends Object{
 	}
 	
 	public static function requestedUrl(){
-		if(array_key_exists('requested_url', $_SESSION)){
+		if($_SESSION !== null && array_key_exists('requested_url', $_SESSION)){
 			return $_SESSION['requested_url'];
 		}else{
 			return null;
@@ -409,21 +616,29 @@ class FrontController extends Object{
 		self::$error_html .= sprintf('<h3>Error code %s: %s</h3>', $code, $message);		
 		self::$error_html .= '<ul>';
 		foreach(debug_backtrace() as $key=>$value){
-			self::$error_html .= sprintf('<li>%d: %s', $key, $value['class']);
-			self::$error_html .= sprintf('::%s in %s at line # %d', $value['function'], $value['file'], $value['line']);
+			try{
+				self::$error_html .= '<li>';
+				foreach($value as $name=>$val){
+					if(!is_object($val)){
+						self::$error_html .= sprintf('%s: %s<br />', $name, $val);
+					}
+				}
+				self::$error_html .= '</li>';
+			}catch(Exception $e){
+				self::$error_html .= $e;
+			}
 			self::$error_html .= '</li>';
 		}
 		self::$error_html .= '</ul>';
-		self::$error_html .= sprintf("<pre>%s</pre>", htmlentities($lines[$line-1]));
+		self::$error_html .= sprintf("<pre>%s</pre>", htmlentities(array_pop($lines)));
 		self::$error_html .= '</code>';
 		self::notify('errorDidHappen', $this, self::$error_html);
-		self::$error_html = null;
-		// Make sure this line is commented out in prod because if an error occurs in the database
-		// code, it'll display your user name and password.
-		//debug_print_backtrace();
+		if(self::$delegate !== null){
+			self::$delegate->errorDidHappen(self::$error_html);
+		}
 	}
 	public function exceptionDidHappen($e){
 		echo $e;
 	}
+	
 }
-?>

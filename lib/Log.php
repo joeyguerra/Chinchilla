@@ -7,6 +7,7 @@
 			$this->prefix = $prefix;
 		}
 		public $path;
+		protected $file_path;
 		public $level;
 		public $to_console;
 		public $prefix;
@@ -16,21 +17,30 @@
 		public function writeLine($message){
 			$this->write($message);
 		}
+		public function delete(){
+			unlink($this->file_path);
+		}
 		public function write($message){
 			if($this->level > 0){
 				if(!$this->to_console){
 					$file_name = $this->getFileName();
 					if(!file_exists($this->path)){
-						throw new Exception("The path: '$this->path' , doesn't exist.");						
+						mkdir($this->path, 0777);
+						chmod($this->path, 0777);
 					}
 					if(is_writable($this->path)){
-						$handle = fopen($this->path . '/'. $file_name, "ab");
-						
+						$this->file_path = $this->path . '/'. $file_name;
+						if(!file_exists($this->file_path)){
+							$handle = fopen($this->file_path, "a+b");
+							chmod($this->file_path, 0777);
+							fclose($handle);
+						}
+						$handle = fopen($this->file_path, "a+b");
 						fwrite($handle, $this->getTimestamp() . " - " . $this->prefix . $message . '
 ');
-						fclose($handle);						
+						fclose($handle);
 					}else{
-						throw new Exception("Log file is not writable: '{$this->path}{$file_name}'. The current path is: {$_SERVER['SCRIPT_FILENAME']}.");
+						throw new Exception("Log file is not writable: '{$this->file_path}'. The current path is: {$_SERVER['SCRIPT_FILENAME']}.");
 					}
 				}else{
 					error_log(sprintf('%s : %s', $this->prefix, $message));

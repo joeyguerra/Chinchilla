@@ -1,0 +1,1 @@
+{"message":"<?php echo urlencode($message);?>"}

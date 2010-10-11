@@ -17,7 +17,7 @@
 			$this->_attributes = new Hashtable();
 		}
 		public function __destruct(){}
-		
+		public $errors;
 		private static $observers;
 		public static function addObserver($observer, $notification, $publisher){
 			self::$observers[] = new Observer($observer, $notification, $publisher);
@@ -33,13 +33,13 @@
 		}
 		public $_attributes;
 		public static function notify($notification, $sender, $info){
-			$publisher = $sender;
+			$publisher = $sender;			
 			if(is_object($sender)){
 				$publisher = get_class($sender);
 			}
 			if(self::$observers != null){
 				foreach(self::$observers as $observer){
-					if(method_exists($observer->obj, $notification) && $observer->publisher === $publisher){
+					if(method_exists($observer->obj, $notification) && $observer->publisher === $publisher){						
 						$observer->obj->{$notification}($sender, $info);
 					}
 				}
@@ -55,7 +55,7 @@
 			if($this->_attributes->offsetExists($key)){
 				$val = $this->_attributes->offsetGet($key);
 			}
-			$getter = 'get' . String::camelize($key);
+			$getter = 'get' . ucwords($key);
 			if(method_exists($this, $getter)){
 				$val = $this->{$getter}();
 			}
@@ -70,8 +70,14 @@
 			return $val;
 
 		}
-
+		private function setPropertyValue($prop, $key, $val){
+			
+		}
 		public function __set($key, $val){
+			$reflector = new ReflectionClass(get_class($this));
+			$properties = $reflector->getProperties();
+			$obj = null;
+			$name = null;
 			if(count(self::$observers) > 0){
 				$publisher = get_class($this);
 				foreach(self::$observers as $observer){
@@ -83,7 +89,18 @@
 			if($this->_attributes == null){
 				$this->_attributes = new Hashtable();
 			}
-			$setter = 'set' . String::camelize($key);
+			
+			foreach($properties as $prop){
+				if($prop->isPublic()){
+					$name = $prop->getName();
+					$obj = $this->{$name};
+					if(is_object($obj) && method_exists($obj, 'set'.ucwords($key))){
+						$this->{$name}->$key = $val;
+					}
+				}
+			}
+			
+			$setter = 'set' . ucwords($key);
 			if(method_exists($this, $setter)){
 				$this->{$setter}($val);
 			}else{
