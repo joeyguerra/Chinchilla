@@ -26,3 +26,19 @@ h1, h2, h3, h4, h5, h6{
 	color: rgb(255,255,255);
 	padding: 10px;
 }
+
+nav a{
+	display: inline-block;
+	padding: 2px 7px 2px 7px;
+	borer-radius: 20px;
+	-webkit-border-radius: 20px;
+	-moz-border-radius: 20px;	
+}
+nav a:hover{
+	background: rgb(150,150,150);
+	color: white;
+}
+nav a:active{
+	background: rgb(100,100,100);
+	color: white;
+}
