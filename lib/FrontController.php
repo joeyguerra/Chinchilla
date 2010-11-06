@@ -513,14 +513,14 @@ class FrontController extends Object{
 			$file = self::getAppPath($file);
 		}
 		$method = strtolower((array_key_exists('_method', $_REQUEST) ? $_REQUEST['_method'] : $_SERVER['REQUEST_METHOD']));
-		$plugins = PluginController::getPlugins('plugins', 'Resource');
+		/*$plugins = PluginController::getPlugins('plugins', 'Resource');
 		foreach($plugins as $plugin){
 			if($plugin->canHandle($class_name, $method)){
 				$output .= $plugin->execute($class_name, $method, $url_parts);
 			}
-		}		
+		}*/
 		if($output === null && file_exists($file)){
-			class_exists($class_name) || require($file);
+			require($file);
 			ob_start();
 			try{
 				$this->resource = new $class_name(array('url_parts'=>$url_parts));		
