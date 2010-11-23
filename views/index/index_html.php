@@ -1,3 +1,4 @@
+<!--<?php echo $id.$test;?>-->
 <h1>
 	Origin of Chinchilla, the RESTful framework
 </h1>

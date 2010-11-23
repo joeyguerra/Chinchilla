@@ -8,14 +8,16 @@
 	</li>
 	<li>
 		<p>Your methods will almost always look like this:</p>
-		<code>
-			public function get(){
-				/* logic here */
-				$this->title = "An example using Chinchilla, A RESTful framework in PHP";
-				$this->output = $this->renderView('example/index', null);
-				return $this->renderView('layouts/default', null);
-			}
-		</code>
+		<pre>
+			<code>
+public function get(){
+	/* logic here */
+	$this->title = "An example using Chinchilla, A RESTful framework in PHP";
+	$this->output = $this->render('example/index', null);
+	return $this->render_layout('default', null);
+}
+			</code>
+		</pre>
 	</li>
 	<li>
 		<p>The renderView method will look in "views/example/" for a file called "index_html.php". The framework determines the file type (eg. html, xml, json, rss, atom, etc.) based on the url. If the url is "/example.html", then the framework will set the resource's fileType property to "html" and renderView will render the views/example/index_html.php file to the resource's "output" property.</p>

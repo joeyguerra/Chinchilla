@@ -3,9 +3,9 @@
 class PluginController{
 	public function __construct(){}
 	public function __destruct(){}
-	public static function getFiles($folder_name, $name){
-		$root = FrontController::getRootPath('/' . $folder_name);
-		$folders = self::getFolders($root);
+	public static function get_files($folder_name, $name){
+		$root = App::get_root_path($folder_name);
+		$folders = self::get_folders($root);
 		$plugin_paths = array();
 		foreach($folders as $folder){
 			$dir = dir($folder);			
@@ -20,7 +20,7 @@ class PluginController{
 		}
 		return $plugin_paths;
 	}
-	public static function getFolders($path){
+	public static function get_folders($path){
 		$folders = array();
 		$folder = dir($path);
 		if($folder !== false){
@@ -35,8 +35,8 @@ class PluginController{
 		}
 		return $folders;
 	}
-	public static function getPlugins($folder_name, $name){
-		$files = self::getFiles($folder_name, $name);
+	public static function get_plugins($folder_name, $name){
+		$files = self::get_files($folder_name, $name);
 		$plugins = array();
 		foreach($files as $file){
 			$parts = explode('/', $file);

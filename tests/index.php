@@ -1,4 +1,10 @@
 <?php
+	function error_handler($number, $message, $file, $line){
+		error_log(sprintf("%d:%s, %s, %d<br />", $number, $message, $file, $line));
+	}
+	function exception_handler($e){
+		var_dump($e);
+	}
 	date_default_timezone_set('America/Chicago');
 	$_appPath = str_replace('/tests/index.php', '', __FILE__);
 	$output = '';
@@ -13,6 +19,8 @@
 	$root = str_replace('index.php', '', __FILE__);
 	$unit = $root . 'unit/';
 	$folder = dir($unit);
+	set_error_handler('error_handler', E_ALL);
+	set_exception_handler('exception_handler');
 	while (false !== ($entry = $folder->read())){
 		$path = $unit . $entry;
 		if($entry != '.' && $entry != '..' && file_exists($path)){
@@ -27,7 +35,7 @@
 	$folder->close();
 	ob_end_flush();
 ?>
-
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>Tests</title>

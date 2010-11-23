@@ -1,39 +1,38 @@
 <?php
 	class_exists('Resource') || require('lib/Resource.php');
-	class_exists('FrontController') || require('lib/FrontController.php');
 	class_exists('NotificationCenter') || require('lib/NotificationCenter.php');
-	class_exists('PluginController') || require('lib/PluginController.php');
+	class_exists('HttpStatus') || require('lib/HttpStatus.php');
+	class_exists('App') || require('lib/App.php');
 	class AppResource extends Resource{
 		public function __construct($attributes = null){
 			parent::__construct($attributes);
-			$resource_name = strtolower(str_replace('Resource', '', get_class($this)));				
+			$resource_name = $this->name;				
 			$this->resource_css = $resource_name . '.css';
-			$this->resource_js = $resource_name . '.js';
-			$root = FrontController::getRootPath(null);
-			if(file_exists($root . '/' . FrontController::getThemePath() . '/js/' . $this->resource_js)){				
-				$this->resource_js = FrontController::urlFor('themes') . 'js/' . $this->resource_js;
+			$this->resource_js = $resource_name . '.js';			
+			if(file_exists(App::get_theme_path('/js/' . $this->resource_js))){
+				$this->resource_js = App::url_for('themes') . 'js/' . $this->resource_js;
 				$this->resource_js = $this->to_script_tag('text/javascript', $this->resource_js);
-			}elseif(file_exists($root . '/js/' . $this->resource_js)){
-				$this->resource_js = FrontController::urlFor('js') . $this->resource_js;
+			}elseif(file_exists(App::get_root_path('/js/' . $this->resource_js))){
+				$this->resource_js = App::url_for('js') . $this->resource_js;
 				$this->resource_js = $this->to_script_tag('text/javascript', $this->resource_js);
 			}else{
 				$this->resource_js = null;
 			}
-			if(file_exists(FrontController::getThemePath() . '/css/' . $this->resource_css)){
-				$this->resource_css = FrontController::urlFor('themes') . 'css/' . $this->resource_css;
+			if(file_exists(App::get_theme_path() . '/css/' . $this->resource_css)){
+				$this->resource_css = App::url_for('themes') . 'css/' . $this->resource_css;
 				$this->resource_css = $this->to_link_tag('stylesheet', 'text/css', $this->resource_css, 'screen,projection');
-			}elseif(file_exists($root . 'css/' . $this->resource_css)){
-				$this->resource_css = FrontController::urlFor('css') . $this->resource_css;
+			}elseif(file_exists(App::get_root_path('css/' . $this->resource_css))){
+				$this->resource_css = App::url_for('css') . $this->resource_css;
 				$this->resource_css = $this->to_link_tag('stylesheet', 'text/css', $this->resource_css, 'screen,projection');
 			}else{
 				$this->resource_css = null;
 			}
 
-			$theme_path = FrontController::getRootPath('/' . FrontController::getThemePath() . '/ThemeController.php');
+			$theme_path = App::get_theme_path('/ThemeController.php');
 			if(file_exists($theme_path)){
 				class_exists('ThemeController') || require($theme_path);
 				$this->theme = new ThemeController($this);
-			}
+			}			
 		}
 		
 		public function __destruct(){
@@ -50,8 +49,8 @@
 		public $q;
 		public $current_user;
 		
-		public function willReturnValueForKey($key, $obj, $val){
-			return $val;
+		public function user_is_unauthorized($resource_name){
+			$this->status = new HttpStatus(401);
 		}
 		public function to_link_tag($rel, $type, $url, $media){
 			return sprintf('<link rel="%s" type="%s" href="%s" media="%s" />', $rel, $type, $url, $media);
@@ -60,32 +59,25 @@
 			return sprintf('<script type="%s" src="%s"></script>', $type, $url);
 		}
 
-		public function didFinishLoading(){
-			parent::didFinishLoading();
+		public function did_finish_loading(){
+			parent::did_finish_loading();
 		}
-		public function hasRenderedOutput($layout, $output){
+		public function output_has_rendered($layout, $output){
 			if(class_exists('AppConfiguration')){
-				$output = $this->filterHeader($output);
-				$output = $this->filterFooter($output);
+				$output = $this->filter_header($output);
+				$output = $this->filter_footer($output);
 			}
 			return $output;
 		}		
-		protected function filterText($text){
-			$post_filters = $this->getPlugins('filters', 'PostFilter');
-			foreach($post_filters as $filter){
-				$text = $filter->execute($text);
-			}
-			return $text;
-		}
-		private function filterHeader($output){
-			$filters = PluginController::getPlugins('filters', 'HeaderFilter');
+		private function filter_header($output){
+			$filters = PluginController::get_plugins('filters', 'HeaderFilter');
 			foreach($filters as $filter){
 				$output = $filter->execute($output);
 			}
 			return $output;
 		}
-		private function filterFooter($output){
-			$filters = $this->getPlugins('filters', 'FooterFilter');
+		private function filter_footer($output){
+			$filters = $this->get_plugins('filters', 'FooterFilter');
 			foreach($filters as $filter){
 				$output = $filter->execute($output);
 			}
@@ -95,8 +87,8 @@
 			return $output;
 		}
 		
-		protected function getPlugins($folder_name, $name){
-			$files = $this->getFiles($folder_name, $name);
+		protected function get_plugins($folder_name, $name){
+			$files = $this->get_files($folder_name, $name);
 			$plugins = array();
 			foreach($files as $file){
 				$parts = explode('/', $file);
@@ -107,7 +99,7 @@
 			}
 			return $plugins;
 		}
-		private function getFiles($folder_name, $name){
+		private function get_files($folder_name, $name){
 			$root = FrontController::getRootPath('/' . $folder_name);
 			$folders = $this->getFolders($root);
 			$plugin_paths = array();
@@ -138,36 +130,6 @@
 				}
 			}
 			return $folders;
-		}
-		public function getTitleFromOutput($output){
-			$matches = array();
-			preg_match( '/\<h1\>.*\<\/h1\>/' , $output, $matches);
-			if(count($matches) > 0){
-				return String::stripHtmlTags($matches[0]);
-			}else{
-				return null;
-			}
-		}
-		
-		public function getPreference($name){
-			if($this->settings != null){
-				foreach($this->settings as $setting){
-					if($name == $setting->name){
-						return $setting;
-					}
-				}				
-			}
-			return null;
-		}
-		public static function randomIndexWithWeights($weights) {
-		    $r = mt_rand(1,1000);
-		    $offset = 0;
-		    foreach ($weights as $k => $w) {
-		        $offset += $w*1000;
-		        if ($r <= $offset) {
-		            return $k;
-		        }
-		    }
-		}
+		}		
 	}
 ?>

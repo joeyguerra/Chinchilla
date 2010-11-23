@@ -1,9 +1,13 @@
 <?php
 class_exists('Object') || require('Object.php');
+class_exists('HttpHeader') || require('HttpHeader.php');
+class_exists('String') || require('lib/String.php');
 class Resource extends Object{
 	public function __construct($attributes = null){
+		$this->status = new HttpStatus(200);
 		parent::__construct($attributes);
 		$this->name = strtolower(String::replace('/Resource/', '', get_class($this)));
+		$this->headers = array(new HttpHeader(array('file_type'=>$this->file_type)));
 	}
 	public function __destruct(){
 		parent::__destruct();
@@ -18,7 +22,7 @@ class Resource extends Object{
 	public $file_type;
 	public $redirect_parameters;
 	public $url_parts;
-	
+	public $headers;
 	public static function pathWithoutExtension($url_part){
 		if(stripos($url_part, '.') !== false){
 			$parts = explode('.', $url_part);
@@ -27,11 +31,63 @@ class Resource extends Object{
 		}
 		return $url_part;
 	}
-	
+	protected function redirect_to($url){
+		$this->status = new HttpStatus(303);
+		$this->headers[] = new HttpHeader(array('file_type'=>$this->file_type, 'location'=>$url));
+	}
 	protected function redirectTo($resource_name, $query_parameters = null, $make_secure = false){
 		$this->redirect_parameters = array('resource_name'=>$resource_name, 'query_parameters'=>$query_parameters, 'make_secure'=>$make_secure);
 		//TODO: This needs to be moved out of here. It's just a stop gap to solve a redirect problem.		
 		FrontController::redirectTo($this->redirect_parameters['resource_name'], $this->redirect_parameters['query_parameters'], $this->redirect_parameters['make_secure']);
+	}
+	public function render_layout($name, $data = null, $file_type = null){
+		if($file_type === null && $this->file_type !== null){
+			$file_type = $this->file_type;
+		}
+		if(!in_array($file_type, array('html', 'xml'))){
+			return $this->output;
+		}
+		return $this->render('layouts/' . $name, $data, $file_type);
+	}	
+	public function render($name, $data = null, $file_type = null){
+		if($file_type === null && $this->file_type !== null){
+			$file_type = $this->file_type;
+		}
+		$file_type = $file_type !== null ? $file_type : 'html';
+		$full_path = sprintf('views/%s_%s.php', $name, $file_type);
+		if($file_type === 'phtml' && !file_exists(App::get_root_path($full_path))){
+			$file_type = 'html';
+			$full_path = sprintf('views/%s_%s.php', $name, $file_type);
+		}
+		if($file_type === 'json' && !file_exists(App::get_root_path($full_path))){
+			$this->status = new HttpStatus(404);
+		}
+		$public_property_names = get_object_vars($this);
+		$properties = array();		
+		foreach($public_property_names as $key=>$value){
+			$properties[$key] = $value;
+		}
+		if(count($properties) > 0){
+			extract($properties);
+		}
+		if($data !== null && is_array($data)){
+			extract($data);
+		}
+		$buffer = null;
+		if(file_exists(App::get_root_path($full_path))){
+			ob_start();
+			require($full_path);
+			$buffer = ob_get_contents();
+			ob_end_clean();			
+		}
+		if($file_type == 'json'){
+			$buffer = String::replace('/\n|\t/', '', $buffer);
+			$buffer = String::replace('/\"/', '"', $buffer);
+		}
+		if(count($this->headers) === 0){
+			$this->headers[] = new HttpHeader(array('file_type'=>$file_type));
+		}
+		return $buffer;
 	}
 	
 	/* This method is for rendering a view. It's based on the file type and assumes that the file type is html.
@@ -66,12 +122,12 @@ class Resource extends Object{
 			
 			ob_start();
 			
-			$__theme_view = FrontController::getRootPath('/' . FrontController::getThemePath() . '/views/' . $__full_path);
+			$__theme_view = FrontController::getRootPath('/' . App::get_theme_path() . '/views/' . $__full_path);
 			$__default_view = str_replace(sprintf('lib%sResource.php', DIRECTORY_SEPARATOR), '', __FILE__) . 'views/' . $__full_path;
 			$__view = str_replace(sprintf('app%slib%sResource.php', DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR), '', __FILE__) . $__full_path;
 			/*printf("root = %s<br />virtual = %s<br />app = %s<br />theme = %s<br /><br />", FrontController::getRootPath()
 				, FrontController::getVirtualPath(), FrontController::getAppPath()
-				, FrontController::getThemePath());
+				, App::get_theme_path());
 				
 			echo $__theme_view . '<br />';
 			echo $__default_view;*/
@@ -126,8 +182,8 @@ class Resource extends Object{
 			}			
 			$this->output = ob_get_contents();
 			ob_end_clean();
-			if($this->isLayout($__file) && method_exists($this, 'hasRenderedOutput')){
-				$this->output = $this->hasRenderedOutput($__file, $this->output);
+			if($this->isLayout($__file) && method_exists($this, 'output_has_rendered')){
+				$this->output = $this->output_has_rendered($__file, $this->output);
 			}
 			if(count($__properties) > 0){
 				$__data = array_merge($__data == null ? array() : $__data, $__properties);
@@ -188,7 +244,50 @@ class Resource extends Object{
 		}
 		return $output;
 	}
-	
+	public function call_with($method, $url_parts, $env){
+		if(method_exists($this, $method)){
+			$method_info = new ReflectionMethod($this, $method);
+			return $this->call_method($method_info, $url_parts, $env);
+		}else{
+			return null;
+		}
+	}
+	private function call_method($method_info, $url_parts, $env){
+		if($method_info == null){
+			return null;
+		}
+		$parm_count = $method_info->getNumberOfParameters();
+		if($parm_count === 0){
+			return $this->{$method_info->getName()}();
+		}
+		$parms = array();
+		if(count($url_parts) >= 3 && is_numeric($url_parts[0]) && is_numeric($url_parts[1]) && is_numeric($url_parts[2])){
+			if(checkdate($url_parts[1], $url_parts[2], $url_parts[0])){
+				$parms = array(date(sprintf('%d/%d/%d', $url_parts[1], $url_parts[2], $url_parts[0])));
+				array_shift($url_parts);
+				array_shift($url_parts);
+				array_shift($url_parts);
+			}
+		}
+		
+		if(count($url_parts) > 0 && $parm_count > 0){
+			foreach($url_parts as $value){
+				if(strlen($value) > 0 && count($parms) < $parm_count){
+					$parms[] = $value;					
+				}
+			}
+		}
+		
+		if(count($parms) < $parm_count){
+			$method_parameters = $method_info->getParameters();
+			foreach($method_parameters as $parameter){
+				$parms[] = self::populateParameter($parameter);
+			}
+		}
+		$output = null;
+		$output = $method_info->invokeArgs($this, $parms);
+		return $output;
+	}
 	public static function sendMessage($obj, $message, $resource_id = 0){
 		$class_name = get_class($obj);
 		$reflector = new ReflectionClass($class_name);
@@ -214,7 +313,7 @@ class Resource extends Object{
 		}
 	}
 	
-	public function didFinishLoading(){
+	public function did_finish_loading(){
 		self::setUserMessage(null);
 	}
 	private static $user_message;
@@ -241,7 +340,11 @@ class Resource extends Object{
 		$ref_class = null;
 		$class_name = null;
 		$name = $param->getName();
-		$ref_class = $param->getClass();
+                $ref_class = null;
+                try{
+                    $ref_class = $param->getClass();
+                }catch(Exception $e){}
+                
 		if($id > 0 && $name == 'id'){
 			return $id;
 		}
@@ -377,13 +480,14 @@ class Resource extends Object{
 			$result = ($value == 'true');
 		}
 		
-		if(is_int($value)){
-			$result = intval($value);
-		}
-		if(is_float($value)){
-			$result = floatval($value);
-		}
-		return $result;
+                if(is_numeric($value)){
+                    if(strpos($value, '.') === false){
+                        $result = (int)$value;
+                    }else{
+                        $result = (float)$value;
+                    }
+                }
+                return $result;
 	}
 	
 }

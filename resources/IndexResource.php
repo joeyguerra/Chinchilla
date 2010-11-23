@@ -7,24 +7,15 @@ class IndexResource extends AppResource{
 	public function __destruct(){
 		parent::__destruct();
 	}
-	
-	public function get(){
-		if(count($this->url_parts) > 0){
-			return $this->test();
-		}
-		
+	public $id;
+	public $test;
+	public function get($id = null, $test = null){		
+		$this->id = $id;
+		$this->test = $test;
 		$this->title = "A RESTful framework in PHP";
-		$this->output = $this->renderView('index/index', null);
-		return $this->renderView('layouts/default', null);			
-		
-	}
-	
-	public function test(){
-		$this->title = "Chinchilla Test Method";
-		$this->output = 'Just a test method to test multipart url routing.';
-		return $this->renderView('layouts/default', null);
-	}
-	
+		$this->output = $this->render('index/index', null);
+		return $this->render_layout('default', null);			
+	}	
 }
 
 ?>

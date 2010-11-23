@@ -6,7 +6,6 @@ RewriteCond %{HTTPS} on
 RewriteBase /chinchilla
 
 ErrorDocument 404 index.php
-
 RewriteRule ^$ index.php [QSA]
 
 #file_check_start

@@ -3,23 +3,23 @@ class_exists('AppResource') || require('resources/AppResource.php');
 class Application{
 	public function __construct(){}
 	public function __destruct(){}
-	public function exceptionHasOccured($sender, $args){
+	public function exception_has_happened($sender, $args){
 		$e = $args['exception'];
 		$file_type = $args['file_type'];
 		$resource = new AppResource(array('file_type'=>$file_type));
 		if($e->getCode() == 401){
-			FrontController::send401Headers('Please login', 'chinchilla');
+			$resource->status = new HttpStatus(401);
 		}elseif($e->getCode() == 404){
-			FrontController::send404Headers('Resource not found');
+			$resource->status = new HttpStatus(404);
 		}else{
 			Resource::setUserMessage('Exception has occured: ' . $e->getMessage());
 			return $resource->renderView('layouts/default');
 		}
 	}
-	public function unauthorizedRequestHasOccurred($sender, $args){
+	public function unauthorized_request_has_happened($sender, $args){
 		FrontController::send401Headers('Please login', 'chinchilla');
 	}
-	public function willExecute($path_info){
+	public function will_dispatch_to_resource($path_info){
 		return $path_info;
 	}
 	public function errorDidHappen($message){

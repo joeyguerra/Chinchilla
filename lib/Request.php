@@ -100,23 +100,22 @@
 		}
 		
 		public static function doRequest($url, $path, $data, $method = 'get', $optionalHeaders = null, $follow_redirect = true){
-			// create curl resource 
+			// create curl resource
+                    error_log("$method : $url");
 			if($path != null){
 				$url .= '/' . $path;
 			}
 	        $ch = curl_init(); 
 			$curl_options = array(
 				CURLOPT_AUTOREFERER=>true
-				//, CURLOPT_HEADER=>true
-				, CURLOPT_FOLLOWLOCATION=>false
+				, CURLOPT_FOLLOWLOCATION=>true
 				, CURLOPT_ENCODING=>''
-				, CURLOPT_USERAGENT=>'App Notifier'
+				, CURLOPT_USERAGENT=>'Chinchilla'
 				, CURLOPT_CONNECTTIMEOUT=>5
 				, CURLOPT_TIMEOUT=>5
 				, CURLOPT_MAXREDIRS=>2
 				, CURLOPT_RETURNTRANSFER=>true
 				, CURLOPT_VERBOSE=>false
-				//, CURLOPT_REFERER=>FrontController::$site_path
 			);
 			
 			if($optionalHeaders != null && is_array($optionalHeaders)){
@@ -142,8 +141,7 @@
 			curl_setopt_array($ch, $curl_options);
 
 	        // $output contains the output string 
-	        $output = curl_exec($ch); 
-
+	        $output = curl_exec($ch);
 			if(curl_errno($ch) > 0){
 				error_log('curl error = ' . curl_error($ch));
 			}

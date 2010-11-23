@@ -60,7 +60,13 @@ chin.observe = function(elem, name, fn){
 	}
 	return fn;
 };
-
+chin.stop_observing = function(elem, name, fn){
+	if(elem.removeEventListener){
+		elem.removeEventListener(name, fn, false);
+	}else{
+		elem.detachEvent('on' + name, fn);
+	}	
+}
 chin.ajax = function(options){
 	var self = chin.apply(this, []);
 	this.options = {
