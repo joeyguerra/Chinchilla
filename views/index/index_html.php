@@ -28,4 +28,3 @@
 <p>
 	I've created a public repository at <a href="http://github.com/ijoey/Chinchilla">(Chinchilla on) GitHub</a> so go get it and take a look. I'm actively developing it and would love ya'll to use it and give me your feedback, suggestions, comments, critics, complaints, etc. Please contact me via <a href="http://github.com/">GitHub</a>.
 </p>
-<p><?php echo round(memory_get_peak_usage() / 1024 / 1024, 2);?> megabytes of memory</p>

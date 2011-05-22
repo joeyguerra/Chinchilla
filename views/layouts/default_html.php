@@ -33,6 +33,7 @@
 		</section>
 		<footer id="footer">
 			<small>Chinchilla</small>
+			<p><?php echo round(memory_get_peak_usage() / 1024 / 1024, 2);?> megabytes of memory</p>
 		</footer>
     </body>
 	<script type="text/javascript">
