@@ -1,20 +1,16 @@
 <?php
-date_default_timezone_set('US/Central');
-ini_set('auto_detect_line_endings',true);
-set_include_path(get_include_path() . PATH_SEPARATOR . str_replace(sprintf('%sindex.php', DIRECTORY_SEPARATOR), '', $_SERVER['SCRIPT_FILENAME']));
-set_include_path(get_include_path() . PATH_SEPARATOR . str_replace(sprintf('%sindex.php', DIRECTORY_SEPARATOR), DIRECTORY_SEPARATOR . 'app', $_SERVER['SCRIPT_FILENAME']));
-
-class_exists('App') || require('lib/App.php');
-Chin_session::start();
-$method = strtolower((array_key_exists('_method', $_REQUEST) ? $_REQUEST['_method'] : $_SERVER['REQUEST_METHOD']));
-$resource = App::dispatch($method, $_GET['r'], array_merge($_SERVER, $_REQUEST));
-if($resource->status !== null){
-	$resource->status->send();		
-}
-if(count($resource->headers) > 0){
-	foreach($resource->headers as $header){
-		$header->send();
-	}
-}
-echo $resource->output;
-?>
+date_default_timezone_set("US/Central");
+ini_set("auto_detect_line_endings",true);
+set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__FILE__));
+set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__FILE__) . "/app");
+require("app.php");
+set_error_handler('error_did_happen', E_ALL);
+set_exception_handler('exception_did_happen');
+require("settings.php");
+require("resources/AppResource.php");
+require("controllers/InstallController.php");
+NotificationCenter::add("AppResource", "begin_request");
+NotificationCenter::add("AppResource", "resource_not_found");
+NotificationCenter::add(new PluginController(), "begin_request");
+NotificationCenter::add(new InstallController(), "query_failed");
+echo FrontController::execute(new Request($_REQUEST, $_FILES, $_SERVER));

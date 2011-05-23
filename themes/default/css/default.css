@@ -57,11 +57,22 @@ pre{
 	margin: 0;
 	padding: 0;
 }
+
 code{
 	margin: 0;
 	padding: 0;
 	display: block;
 	line-height: 21px;
+}
+footer nav:first-child{
+	margin: 0 auto;
+	width: 530px;
+}
+footer small{
+	font-size: .7em;
+}
+body:nth-child(2) section{
+	padding-bottom: 50px;
 }
 #header, section, #footer{
 	margin: 0 auto;
@@ -86,10 +97,18 @@ section article{
 	right: 0;
 	background: #2B96F1;
 	color: #fff;
-	padding: 0;
+	padding: 7px 0 0 0;
 	text-align: center;
+	box-shadow: 0 0 4px rgba(50,50,50, .5);
+	-webkit-box-shadow: 0 0 4px rgba(50,50,50, .5);
+	-moz-box-shadow: 0 0 4px rgba(50,50,50, .5);
 }
-
+#footer p{
+	margin: 0;
+	padding: 0;
+	color: #fff;
+	line-height: 1em;
+}
 #user_message{
 	border: solid 1px rgb(0,0,0);
 	border-radius: 10px;
@@ -123,4 +142,8 @@ section article{
 #header h1 a span{
 	text-indent: -9999px;
 	display: block;
+}
+.dark h1
+, .dark p{
+	color: #ffffff;
 }

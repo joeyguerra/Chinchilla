@@ -1,6 +1,74 @@
+/* jquery plugin to make an elememt positioned on the page.*/
+(function($){
+	$.fn.make_positioned = function(){
+		return this.each(function(){
+			var elem = $(this);
+			var pos = elem.position();
+			elem.data("pos", {position: elem.css("position"), marginLeft: elem.css("margin-left"), marginRight: elem.css("margin-right"), top: pos.top, left: pos.left});
+			elem.css({
+				position: "absolute"
+				, marginLeft: 0
+				, marginRight: 0
+				, top: pos.top
+				, left: pos.left
+			});
+		});
+	};
+})(jQuery);
+
+(function($){
+	$.fn.make_unpositioned = function(){
+		return this.each(function(){
+			var elem = $(this);
+			var pos = elem.data("pos");
+			elem.css({
+				position: pos.position
+				, marginLeft: pos.marginLeft
+				, marginRight: pos.marginRight
+				, top: pos.top
+				, left: pos.left
+			});
+		});
+	};
+})(jQuery);
+
 function chin(){
 	return this;
 }
+chin.default_center = (function(){
+	var observers = [];
+	var self = {
+		post: function(notification, publisher, info){
+			var ubounds = observers.length;
+			var i = 0;
+			for(i; i<ubounds; i++){
+				if(!observers[i]) continue;
+				if(observers[i].notification != notification) continue;
+				if(observers[i].publisher != null && observers[i].publisher != publisher) continue;
+				try{
+					observers[i].observer[notification].apply(observers[i].observer, [publisher, info]);
+				}catch(e){
+					console.log(e);
+				}
+			}
+		}
+		, subscribe: function(notification, observer, publisher){
+			observers.push({"notification": notification, "observer":observer, "publisher":publisher});
+		}
+		, unsubscribe: function(notification, observer, publisher){
+			var i = 0;
+			var ubounds = observers.length;
+			for(i; i<ubounds; i++){
+				if(observers[i].observer == observer && observers[i].notification == notification){
+					observers.splice(i, 1);
+					break;
+				}
+			}
+		}
+	}
+	return self;
+})();
+
 chin.to_json = function(text){
 	var response = null;
 	eval('response = ' + text + ';');
@@ -67,70 +135,7 @@ chin.stop_observing = function(elem, name, fn){
 		elem.detachEvent('on' + name, fn);
 	}	
 }
-chin.ajax = function(options){
-	var self = chin.apply(this, []);
-	this.options = {
-		method: 'post'
-		, asynchronous: true
-		, contentType: 'application/x-www-form-urlencoded'
-		, encoding: 'UTF-8'
-		, parameters: ''
-		, evalJSON: true
-		, evalJS: true
-	};
-	var events = ['UNSENT', 'OPENED', 'HEADERS_RECEIVED', 'LOADING', 'DONE'];
-	chin.extend(this.options, options !== null ? options : {});
-	if(!request){
-		var request = createTransport();
-	}
-	function createTransport(){
-		if(XMLHttpRequest)return new XMLHttpRequest();
-		if(ActiveXObject && ActiveXObject('Msxml2.XMLHTTP')) return new ActiveXObject('Msxml2.XMLHTTP');
-		if(ActiveXObject && ActiveXObject('Microsoft.XMLHTTP')) return new ActiveXObject('Microsoft.XMLHTTP');
-		return null;
-	}
-	function didStateChange(){
-		var state = events[request.readyState];
-		if(self.options[state]){
-			self.options[state][1].apply(self.options[state][0], [request]);
-		}
-		if(state === 'DONE'){
-			request = null;
-		}
-	}
-	function getHeaders(method, params){
-		var header = {"X-Requested-With":"XMLHttpRequest", "Accept":"text/javascript, text/html, application/xml, text/xml, */*"};
-		if(method === 'post'){
-			header["Content-type"] = 'application/x-www-form-urlencoded; charset=UTF-8';
-		}
-		return header;
-	}
-	this.send = function(url){
-		if(request == null) return;
-		if(this.options.parameters){
-			if(this.options.method == 'get'){
-				url += (/\?/.test(url) ? '&' : '?') + this.options.parameters;
-			}else if(/Konqueror|Safari|KHTML/.test(navigator.userAgent)){
-				this.options.parameters += '&_=';
-			}
-		}
-		if(!['get', 'post'].indexOf(this.options.method)){
-			this.options.parameters += '&_method=' + this.options.method;
-			this.options.method = 'post';
-		}
-		//TODO: attachEvent doesn't work in IE for the readystatechange event on the request. I'm not sure why but
-		// I'm working around it for now. I'd love to fix this.
-		request.onreadystatechange = this.bind(didStateChange);
-		request.open(this.options.method.toUpperCase(), url, this.options.asynchronous);		
-		var headers = getHeaders(this.options.method, this.options.parameters);
-		for(name in headers){
-			request.setRequestHeader(name, headers[name]);
-		}
-		request.send(this.options.method === 'post' ? this.options.parameters : null);
-	};
-	return this;
-};
-chin.extend(chin.ajax, chin);
+
 chin.stop = function(e){
 	if(e.preventDefault){
 		e.preventDefault();
@@ -140,3 +145,9 @@ chin.stop = function(e){
 	}	
 	e.returnValue = false;
 }
+chin.view = function(){
+	return this;
+};
+chin.controller = function(){	
+	return this;
+};

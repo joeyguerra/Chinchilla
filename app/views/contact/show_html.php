@@ -1,0 +1,1 @@
+<p><?php echo $contact->name;?></p>
