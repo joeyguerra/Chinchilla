@@ -608,7 +608,7 @@ class Request{
 		$params = array("http" => array(
 			"method" => strtoupper($request->method)
 			, "content"=> $request->data
-			, "header"=>""
+			, "header"=>"Content-Type: text/html\r\n"
 		));
 		if ($request->optional_headers !== null) {
 			$params["http"]["header"] = $request->optional_headers;
