@@ -1,4 +1,3 @@
-<?php class_exists("AuthController") || require("controllers/AuthController.php");?>
 <article>
 	<h1>
 		Origin of Chinchilla, the RESTful framework

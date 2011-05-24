@@ -60,7 +60,7 @@ pre{
 
 code{
 	margin: 0;
-	padding: 0;
+	padding: 10px;
 	display: block;
 	line-height: 21px;
 }
@@ -146,4 +146,37 @@ section article{
 .dark h1
 , .dark p{
 	color: #ffffff;
+}
+#console{
+	position: fixed;
+	top: 50%;
+	left: -30%;
+	width: 25%;
+	background: rgba(0,0,0,.8);
+	color: #fff;
+	padding: 10px;
+}
+#console p{
+	color: #fff;
+}
+#console_tab{
+	transform: rotate(90deg);
+	-webkit-transform: rotate(90deg);
+	-moz-transform: rotate(90deg);
+	cursor: pointer;
+	width: 82px;
+	text-align: center;
+	left: 0px;
+	margin-left: -42px;
+	position: fixed;
+	top: 53%;
+	z-index: 100000;
+	line-height: 13px;
+	letter-spacing: 5px;
+}
+#console.opened{
+	left: 17px;
+}
+#console.closed{
+	left: -30%;
 }

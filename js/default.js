@@ -1,37 +1,3 @@
-/* jquery plugin to make an elememt positioned on the page.*/
-(function($){
-	$.fn.make_positioned = function(){
-		return this.each(function(){
-			var elem = $(this);
-			var pos = elem.position();
-			elem.data("pos", {position: elem.css("position"), marginLeft: elem.css("margin-left"), marginRight: elem.css("margin-right"), top: pos.top, left: pos.left});
-			elem.css({
-				position: "absolute"
-				, marginLeft: 0
-				, marginRight: 0
-				, top: pos.top
-				, left: pos.left
-			});
-		});
-	};
-})(jQuery);
-
-(function($){
-	$.fn.make_unpositioned = function(){
-		return this.each(function(){
-			var elem = $(this);
-			var pos = elem.data("pos");
-			elem.css({
-				position: pos.position
-				, marginLeft: pos.marginLeft
-				, marginRight: pos.marginRight
-				, top: pos.top
-				, left: pos.left
-			});
-		});
-	};
-})(jQuery);
-
 function chin(){
 	return this;
 }
@@ -151,3 +117,29 @@ chin.view = function(){
 chin.controller = function(){	
 	return this;
 };
+
+chin.console = {};
+chin.console.log = function(message){
+	if(console){
+		console.log(message);
+	}
+	var c = document.getElementById("console");
+	if(c){
+		c.innerHTML += "<p>" + message + "</p>";
+	}
+};
+
+chin.console.clicked = function(e){
+	chin.stop(e);
+	var c = document.getElementById("console");
+	c.className = c.className === "opened" ? "closed" : "opened";
+	e.target.className = c.className;
+};
+(function(){
+	var interval = setInterval(function(){
+		if(document.getElementById("console_tab")){
+			chin.observe(document.getElementById("console_tab"), "click" , chin.console.clicked);
+			clearInterval(interval);
+		}
+	}, 50);
+})();
