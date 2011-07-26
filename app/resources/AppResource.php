@@ -4,7 +4,7 @@ class AppResource extends Resource{
 		parent::__construct();
 	}
 	public static function resource_not_found($publisher, $info){
-		return $resource;
+		return null;
 	}
 	public static function begin_request($publisher, $info){
 	}

@@ -241,7 +241,7 @@ class DefaultMessageStrategy extends SendMessageStrategy{
 		$this->contact->url = trim($this->contact->url);
 		if(strlen($this->contact->url) === 0) throw new Exception("The contact's website address is empty.");
 		$this->message = urlencode($this->message);
-		return Request::send_asynch(new HttpRequest(array("url"=>"http://" . $this->contact->url . "/inbox", "method"=>"post", "data"=>"message=$this->message&subject=$this->subject&sender=" . AuthController::$current_user->name . "@" . App::$domain, null)));
+		return Request::send_asynch(new HttpRequest(array("url"=>"http://" . $this->contact->url . "/inbox", "method"=>"post", "data"=>"message=$this->message&subject=$this->subject&sender=" . App::$domain, null)));
 	}
 }
 class Resource{
