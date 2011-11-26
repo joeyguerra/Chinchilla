@@ -1,0 +1,142 @@
+<!--
+	 ____     __                          __          ___   ___                
+	/\  _`\  /\ \      __                /\ \      __/\_ \ /\_ \               
+	\ \ \/\_\\ \ \___ /\_\    ___     ___\ \ \___ /\_\//\ \\//\ \      __      
+	 \ \ \/_/_\ \  _ `\/\ \ /' _ `\  /'___\ \  _ `\/\ \\ \ \ \ \ \   /'__`\    
+	  \ \ \L\ \\ \ \ \ \ \ \/\ \/\ \/\ \__/\ \ \ \ \ \ \\_\ \_\_\ \_/\ \L\.\_  
+	   \ \____/ \ \_\ \_\ \_\ \_\ \_\ \____\\ \_\ \_\ \_\\____\\____\ \__/.\_\ 
+	    \/___/   \/_/\/_/\/_/\/_/\/_/\/____/ \/_/\/_/\/_//____//____/\/__/\/_/ 
+		everything should be this easy!
+-->
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<title><?php echo $title;?></title>
+		<meta name="author" content="Joey Guerra" />
+		<meta name="keywords" content="<?php echo $keywords;?>" />
+		<meta name="description" content="<?php echo $description;?>" />		
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="translucent black" />
+		<link rel="icon" type="image/png" href="<?php echo resource::url_for("apple-touch-icon.png");?>" />	
+		<link rel="apple-touch-startup-image" href="<?php echo resource::url_for("startup.png");?>" />
+		<link rel="apple-touch-icon" href="<?php echo resource::url_for("apple-touch-icon.png");?>" />
+		<link rel="apple-touch-icon" href="<?php echo resource::url_for("apple-touch-icon-ipad.png");?>" sizes="72x72" />
+		<link rel="apple-touch-icon" href="<?php echo resource::url_for("apple-touch-icon-iphone4.png");?>" sizes="114x114" />
+		<link rel="stylesheet" type="text/css" href="<?php echo resource::url_for("css/default.css");?>" />
+		<link rel="stylesheet" type="text/css" href="<?php echo theme_controller::url_for("css/default.css");?>" />
+		<?php echo $css;?>
+	</head>
+	<body class="<?php echo $resource_name;?>">
+		<header id="masthead">
+			<h1><?php echo settings::site_title();?></h1>
+			<h1 id="logo"><a href="<?php echo resource::url_for(null);?>" title="Chinchilla: a RESTful framework"><span>Chinchilla</span></a></h1>
+			<aside>a RESTful framework</aside>
+			<nav>
+				<a href="<?php echo resource::url_for("example.html");?>" title="example on how to use the Chinchilla framework to return HTML">example.html</a>
+				<a href="<?php echo resource::url_for("example.xml");?>" title="example on how to use the Chinchilla framework to return XML">example.xml</a>
+				<a href="<?php echo resource::url_for("example.json");?>" title="example on how to use the Chinchilla framework to return JSON">example.json</a>
+				<a href="<?php echo resource::url_for("example.json");?>" title="example on how to use the Chinchilla framework to return JSON for an AJAX request" id="example_link">ajax example.json</a>
+			</nav>			
+		</header>
+		<section>
+			<div id="user_message"<?php echo (view::get_user_message() === null ?  ' style="display:none;"' : null);?>><?php echo view::get_user_message();?></div>
+			<?php echo $output;?>
+		</section>
+		<footer id="footer">
+			<p><small>Chinchilla: <?php echo round(memory_get_peak_usage(true) / 1024 / 1024, 2);?> megabytes of memory was used to respond to this request</small></p>
+		</footer>
+		<a href="http://github.com/ijoey/Chinchilla"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/7afbc8b248c68eb468279e8c17986ad46549fb71/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub"></a>
+		<aside id="console">
+			<h3>Javascript console</h3>
+		</aside>
+	</body>
+	<script type="text/javascript" src="<?php echo resource::url_for("js/default.js");?>"></script>
+	<?php echo $js;?>
+	<script>
+	(function(){
+		// Code to handle the ajax example.
+		var ajax_example_link = document.getElementById("example_link");
+		ajax_example_link.addEventListener("click", function(e){e.preventDefault();chin.notification_center.publish("example_link_was_clicked", this, e);}, true);
+		function model(){
+			var html = "";
+			var self = {
+				set html(v){
+					v = chin.filter_center.publish("model.html", this, v);
+					html = v;
+				}
+				, get html(){
+					return html;
+				}
+			}
+			return self;
+		}
+
+		function view(model){
+			chin.filter_center.subscribe("model.html", this);
+			this.close_button = document.createElement("button");
+			this.container = document.createElement("div");
+			this.container.className = "modal";
+			this.close_button.className = "close";
+			var inner_container = document.createElement("div");
+			this.container.appendChild(this.close_button);
+			this.container.appendChild(inner_container);
+
+			this.close_button.setAttribute("onclick", 'chin.notification_center.publish("close_button_was_clicked", this, this);');
+			this.close_button.innerHTML = "x";
+			this["model.html"] = function(publisher, info){
+				inner_container.innerHTML = info;
+			}
+			chin.notification_center.subscribe("close_button_was_clicked", this, null);
+			return this;
+		}
+		view.prototype.close_button_was_clicked = function(publisher, info){
+			this.close();
+		};
+		view.prototype.close = function(){
+			this.container.style["display"] = "none";
+		};
+		view.prototype.open = function(){
+			this.container.style["display"] = "block";
+		};
+		view.prototype.add_to_parent = function(parent){
+			parent.appendChild(this.container);
+		}
+		function controller(){
+			this.model = new model();
+			this.view = new view(this.model);
+			this.view.add_to_parent(document.body);
+			return this;
+		}
+		controller.prototype.example_link_was_clicked = function(publisher, info){
+			var url = publisher.getAttribute("href");
+			var self = this;
+			setTimeout(function(){
+				self.render_later(url);
+			}, 32);
+		};
+		controller.prototype.render_later = function(url){
+			var xhr = new XMLHttpRequest();
+			var self = this;
+			xhr.addEventListener("readystatechange", function(e){self.should_render_from_ajax(e)}, false);
+			xhr.open("GET", url);
+			xhr.send();
+		};
+		controller.prototype.should_render_from_ajax = function(e){
+			if(e.target.readyState !== XMLHttpRequest.DONE) return;
+			if(e.target.status === 200){
+				var response = JSON.parse(e.target.responseText);
+				this.model.html = decodeURIComponent(response.message.replace(/\+/gi, " "));
+				this.view.open();
+			}
+		}
+
+		var c = new controller();
+		chin.notification_center.subscribe("example_link_was_clicked", c, null);
+
+	})();
+	</script>
+</html>
+

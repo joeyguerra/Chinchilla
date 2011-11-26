@@ -1,35 +1,32 @@
+@import url("reset.css");
+
 *::selection{
 	background: #2B96F1;
 	color: #fff;
 }
 body{
 	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-	background: #FCFCFC url("../images/background.png") repeat-x;
+	background: #FCFCFC;
 	font-size: 16px;
 }
 header, section, nav, aside, time, footer{
 	display: block;
 	text-align: left;
+	width: 80%;
+	margin: 0 auto;
 }
 h1, h2, h3, h4, h5, h6{
-	font-family: myriad-pro-1, myriad-pro-2, sans-serif;
-	margin-bottom: 10px;
+	margin: 1em 0 .5em 0;
 	color: #1C1C1C;
 	font-weight: 600;
 }
-h2{
-	font-size: 30px;
-	margin: 0 0 22px;
-}
 p{
 	color: #333;
-	font-size: 15px;
 	line-height: 25px;
 }
 a{
 	background-color: rgb(45,150,240);
-	font-size: 13px;
-	line-height: 1px;
+	line-height: 1em;
 	text-shadow: rgba(0,0,0.25);
 	color: #fff;
 	box-shadow: 1px 1px 3px rgba(0,0,0,.5);
@@ -44,12 +41,6 @@ a{
 a:active{
 	background-color: rgb(35,120,190);
 }
-label{
-	color: #4d4d4d;
-	font-family: myriad-pro-1, myriad-pro-2, sans-serif;
-	margin: 0 0 20px;
-	font-size: 22px;
-}
 header aside{
 	margin-bottom: 20px;
 }
@@ -63,20 +54,7 @@ code{
 	padding: 10px;
 	display: block;
 	line-height: 21px;
-}
-footer nav:first-child{
-	margin: 0 auto;
-	width: 530px;
-}
-footer small{
-	font-size: .7em;
-}
-body:nth-child(2) section{
-	padding-bottom: 50px;
-}
-#header, section, #footer{
-	margin: 0 auto;
-	width: 80%;
+	word-wrap: break-word;
 }
 section article{
 	background: #fff;
@@ -85,9 +63,6 @@ section article{
 	border-radius: 7px;
 	-webkit-border-radius: 7px;
 	-moz-border-radius: 7px;
-}
-#header{
-	margin-bottom: 20px;
 }
 #footer{
 	position: fixed;
@@ -129,7 +104,7 @@ section article{
 	color: #fff;
 }
 
-#header h1 a{
+#masthead h1 a{
 	display: block;
 	width: 192px;
 	height: 172px;
@@ -139,44 +114,60 @@ section article{
 	-webkit-box-shadow:none;
 	-moz-box-shadow:none;
 }
-#header h1 a span{
+#masthead h1 a span{
 	text-indent: -9999px;
 	display: block;
 }
-.dark h1
-, .dark p{
-	color: #ffffff;
+#console *{
+	color: white;
+}
+#console h3{
+	margin: 0;
+	padding: 0;
 }
 #console{
+	display: none;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	width: 80%;
+	background: rgba(0,0,0,.8);
+	padding: 1em;
+}
+.modal *{
+	color: white;
+}
+.modal{
+	display: none;
+	box-shadow: 0 0 7px rgba(0,0,0,.8);
 	position: fixed;
 	top: 50%;
-	left: -30%;
-	width: 25%;
-	background: rgba(0,0,0,.8);
-	color: #fff;
+	left: 50%;
+	margin-left: -25%;
 	padding: 10px;
+	border-radius: 10px;
+	margin-top: -25%;
+	width: 50%;
+	height: 50%;
+	background: black;
+	overflow: hidden;
 }
-#console p{
-	color: #fff;
+.modal div{
+	overflow: auto;
 }
-#console_tab{
-	transform: rotate(90deg);
-	-webkit-transform: rotate(90deg);
-	-moz-transform: rotate(90deg);
-	cursor: pointer;
-	width: 82px;
-	text-align: center;
-	left: 0px;
-	margin-left: -42px;
-	position: fixed;
-	top: 53%;
-	z-index: 100000;
-	line-height: 13px;
-	letter-spacing: 5px;
-}
-#console.opened{
-	left: 17px;
-}
-#console.closed{
-	left: -30%;
+.modal .close{
+	padding: 0;
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	line-height: 100%;
+	display: block;
+	border-radius: 20px;
+	width: 20px;
+	height: 20px;
+	font-size: 16px;
+	font-family: Helvetica, sans-serif;
+	color: white;
+	border: solid 2px white;
+	background: transparent;
 }

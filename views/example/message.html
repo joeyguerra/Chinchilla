@@ -1,0 +1,33 @@
+<article>
+	<h1>This is an example on how to use Chinchilla, a RESTful framework in PHP</h1>
+	<ol>
+		<li>
+			<p>Create a resource by creating a file in the resources folder. You can copy either example_resource.php or index_resource.php.</p>
+		</li>
+		<li>
+			<p>Create a method in your new resource named the same as the HTTP method you want it to handle. For example, if you look at the example_resource.php file, you'll see a method called <em>GET</em>. This method responds to an HTTP GET request to a relative url <em>/example/</em> (NOTE: you can specify the representation with file extensions like .html, .xml, .json, .js, or even .phtml for partial HTML). If you want to handle the HTTP POST method, then create a method called <em>POST</em>.</p>
+		</li>
+		<li>
+			<p>Your methods will almost always look like this:</p>
+			<pre>
+				<code>
+	function GET(){
+	&#09;/* logic here */
+	&#09;$this->title = "An example using Chinchilla, A RESTful framework in PHP";
+	&#09;$this->output = view::render("example/index", $this);
+	&#09;return layout::render("default", $this);
+	}
+				</code>
+			</pre>
+		</li>
+		<li>
+			<p>The static view::render method will look in <em>views/example/</em> for a file called <em>index.html</em>. The framework determines the file type (eg. html, xml, json, rss, atom, etc.) based on the url. If the url is <em>/example.html</em>, view::render will return the views/example/index.html file to the resource's $output property.</p>
+		</li>
+		<li>
+			<p>layout::render will get <em>layouts/default.html</em>, which echo's the resources <em>$output</em> property.</p>
+		</li>
+		<li>
+			<p>You'll also notice a themes folder in the file hierarchy. This folder contains themes that you might want to use for your site. There's a "default" theme in the code base now. The theme can be set in the theme_controller class. If the "views" folder hierarchy is defined in a theme folder within the <em>themes</em> folder, the framework will look there first to find any views. The <em>view</em> facility is how the framework implements the Representational part of REST. You can represent the data in any way by creating a view for it, according to the file type you specify. For instance, if I want a <em>.doc</em> representation, create view files appended with <em>.doc</em>. Check out the example resource and views to see what I mean.</p>
+		</li>
+	</ol>
+</article>

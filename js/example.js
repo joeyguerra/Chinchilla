@@ -1,3 +1,1 @@
-$(function(){
-	chin.console.log("This is js/example.js.");
-});
+console.log("example.js is loaded for the example_resource.");

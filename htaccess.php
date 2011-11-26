@@ -1,24 +1,32 @@
 <?php
 $htaccess = <<<eos
-Options +FollowSymLinks -MultiViews
-RewriteEngine On
-RewriteBase /chinchilla
+	Options +FollowSymLinks -MultiViews
+	RewriteEngine On
+	RewriteBase /chinchilla
 
-RewriteCond %{HTTPS} on
-RewriteBase /sixd
+	RewriteCond %{HTTPS} on
+	RewriteBase /chinchilla
 
-ErrorDocument 404 index.php
+	ErrorDocument 404 index.php
 
-RewriteRule ^$ index.php [QSA]
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteRule ^$ index.php [QSA]
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^/?([a-zA-Z0-9\-\_/\.^\?^\&]+)/?$ index.php?r=$1 [QSA,L]
+	#file_check_start
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{REQUEST_FILENAME} !-f
+	RewriteRule ^(.*)$ index.php?r=$1 [QSA,L]
+	#file_check_end
 
-# for maintenance.
-#DirectoryIndex maintenance.php
-#RewriteRule ^$ maintenance.php [QSA]
-#AddHandler application/x-httpd-php .php5
-#DirectoryIndex index.php
-#RewriteRule ^/?([a-zA-Z0-9/\.^\?^\&]+)/?$ maintenance.php [QSA,L]
+	# This block is required to do HTTP digest authentication in environments where PHP is executed
+	# as a CGI.
+	RewriteCond %{HTTP:Authorization} !^$
+	RewriteRule .* - [E=PHP_AUTH_DIGEST:%{HTTP:Authorization},L]
+
+	# for maintenance.
+	#DirectoryIndex maintenance.php
+	#RewriteRule ^$ maintenance.php [QSA]
+	#DirectoryIndex index.php
+	#RewriteRule ^/?([a-zA-Z0-9/\.^\?^\&]+)/?$ maintenance.php [QSA,L]
 eos;
 
