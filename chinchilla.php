@@ -9,20 +9,23 @@ class front_controller{
 	function __destruct(){}
 	public $resource;
 	function execute($request){
-		$finder = new resource_finder();
 		notification_center::publish("begin_request", $this, $request);
+		$finder = new resource_finder();
 		$this->resource = $finder->find($request);
 		$http_method = $request->server["REQUEST_METHOD"];
+		$warning = null;
 		if(array_key_exists("_method", $request->request)) $http_method = strtoupper($request->request["_method"]);
 		try{
+			if(!method_exists($this->resource, $http_method)) $this->resource = filter_center::publish("resource_not_found", $this->resource, $this->resource->resource_name);
 			$request->output = $this->send($this->resource, $http_method, $request);			
 		}catch(Exception $e){
 			$this->resource->status = new http_status(array("code"=>500, "message"=>"Internal error occurred"));
-			$this->resource->headers[] = new http_header(array("Warning"=>$e->getMessage() . "-" . str_replace(PHP_EOL, " ", $e->getTraceAsString())));
+			$warning = $e->getMessage() . "-" . str_replace(PHP_EOL, " ", $e->getTraceAsString());				
 		}
 		$request->output = filter_center::publish("end_request", $request, $request->output);
+		if(view::get_user_message() !== null) $warning .= view::get_user_message();
+		if($warning !== null) $this->resource->headers[] = new http_header(array("Warning"=>$warning));
 		resource::send_status($this->resource->status);
-
 		if($this->resource->headers !== null){
 			foreach($this->resource->headers as $header){
 				foreach($header->values as $key=>$value)
@@ -33,6 +36,8 @@ class front_controller{
 		return $request->output;
 	}
 	function send($resource, $method, $request){
+		$class = new ReflectionObject($resource);
+		if(!$class->hasMethod($method)) throw new not_found_exception($resource, $method, "Method not found");
 		$method_info = new ReflectionMethod($resource, $method);
 		$parameters = $method_info->getParameters();
 		$args = url_argument_parser::parse(url_parser::get_r($request));
@@ -43,12 +48,67 @@ class front_controller{
 				$hash[$parameter->getName()] = $args[$key];
 			}
 		}
-		//error_log(json_encode($hash));
 		$args = request_argument_mapper::map($resource, $parameters, $request, $hash);
-		//error_log(json_encode($args));
-		return $method_info->invokeArgs($resource, $args);
+		notification_center::publish("before_calling_http_method", $resource, $args);
+		$result = $method_info->invokeArgs($resource, $args);
+		return $result;
 	}
 }
+class not_found_exception extends Exception{
+	function __construct($resource, $method, $message){
+		$this->message = $message;
+		$this->resource = $resource;
+		$this->method = $method;
+	}
+	public $resource;
+	public $method;
+}
+class auth_controller{
+	function before_calling_http_method($publisher, $info){
+		$secured = array("members", "posts");
+		if(in_array($publisher->resource_name, $secured)){
+			if(self::get_chin_auth() === null){
+				view::set_user_message("Unauthed");
+				error_log("unauthed request to $publisher->resource_name");
+				resource::redirect("signin");
+			}
+		}
+	}
+	private static function create_key($name, $expiry){
+		return hash("sha256", $name . $_SERVER["REMOTE_ADDR"] . $expiry, false);
+	}
+	private static function get_chin_auth(){
+		return array_key_exists("chin_auth", $_COOKIE) ? $_COOKIE["chin_auth"] : null;
+	}
+	private static function set_chin_auth($value, $expire = 0, $path = null, $domain = null, $secure = false, $httponly = true){
+		setcookie("chin_auth", $value, $expire, $path, $domain, $secure, $httponly);
+		$_COOKIE["chin_auth"] = $value;
+	}
+	static function signin($signin, $password){
+		$member = self::current_user();
+		if($member === null) $member = storage::find_members_one(array("where"=>"signin=:signin and password=:password","args"=>array("signin"=>$signin, "password"=>string::password($password))));
+		if($member === null) return null;
+		self::set_authed($member);
+		return $member;
+	}
+	static function is_authed(){
+		return self::get_chin_auth() !== null;
+	}
+	static function signout(){
+		self::set_chin_auth(null, time()-3600);
+	}
+	static function current_user(){
+		$member = storage::find_members_one((object)array("where"=>"hash=:hash", "args"=>array("hash"=>self::get_chin_auth())));
+		return $member;
+	}
+	private static function set_authed($member){
+		$expiry = 0;
+		$auth_key = self::create_key($member->signin, $expiry);
+		self::set_chin_auth($auth_key, $expiry);
+		return $auth_key;
+	}
+}
+
 class magic_quotes_remover{
 	function setting_parameter_from_request($publisher, $info){
 		if(is_object($info) || is_array($info)) return $info;
@@ -87,6 +147,7 @@ class request_argument_mapper{
 		return $hash;
 	}
 }
+
 class urL_argument_parser{
 	static function parse($path){
 		$time = url_date_parser::parse($path);
@@ -155,6 +216,8 @@ class resource{
 		$this->js = $this->get_script_markup($this->resource_name);
 		$this->status = new http_status(array("code"=>200, "message"=>"Ok"));
 		$this->title = settings::site_title();
+		$this->description = "Chinchilla, a RESTful library";
+		$this->keywords = "restful, rest, php, sqlite, framework, library";
 	}
 	public $resource_name;
 	public $css;
@@ -167,7 +230,6 @@ class resource{
 	public $headers;
 	public $description;
 	public $keywords;
-	public $author;
 	static function domain(){
 		return $_SERVER["SERVER_NAME"] === "localhost" ? null : $_SERVER["SERVER_NAME"];
 	}
@@ -238,9 +300,12 @@ eos;
 	}
 	static function content_type($file_type){
 		if($file_type === "html") return "text/html;charset=UTF-8";
-		if($file_type === "json") return "application/json;charset=UTF-8";
+		if($file_type === "phtml") return "text/html;charset=UTF-8";
 		if($file_type === "xml") return "text/xml;charset=UTF-8";
+		if($file_type === "json") return "application/json;charset=UTF-8";
+		if($file_type === "js") return "application/javascript;charset=UTF-8";
 		if($file_type === "manifest") return "text/cache-manifest;charset=UTF-8";
+		return "text/plain;charset=UTF-8";
 	}
 	
 }
@@ -317,28 +382,69 @@ class request{
 	function __construct($server, $request){
 		$this->server = $server;
 		$this->request = $request;
+		$this->post = $_POST;
+		$this->get = $_GET;
+		$this->files = $_FILES;
+		if(in_array(strtolower($server["REQUEST_METHOD"]), array("put", "delete"))){
+			$this->put = $this->map();
+			if($this->put !== null){
+				foreach($this->put as $k=>$v){
+					$this->request[$k] = $v;
+				}
+			}
+		}
 	}
+	public $files;
+	public $put;
+	public $post;
+	public $get;
 	public $server;
 	public $request;
 	public $output;
+	private function map(){
+		$body="";
+		if(strpos("application/json", $this->server["CONTENT_TYPE"]) === false) return null;
+		$stream = fopen("php://input", "r");
+		while ($block = fread($stream, 1024)) {
+			$body = $body.$block;
+		}
+		fclose($stream);
+		$obj = json_decode($body);
+		$properties = get_object_vars($obj);
+		foreach($properties as $k=>$v){
+			$hash[$k] = $v;
+		}
+		return $hash;
+	}
 }
 class theme_controller{
 	function before_rendering_view($publisher, $info){
 		$view = $info;
-		$theme = filter_center::publish("should_get_theme", $this, $info);
+		$theme = array((object)array("value"=>"default"));
+		try{
+			$theme = storage::find_settings((object)array("where"=>"key=:key", "args"=>array("key", "theme")));			
+		}catch(Exception $e){}
+		if(count($theme) > 0) $view = $theme[0]->value . "/" . $info;
+		else $view = "themes/default/$info";
 		if(file_exists(resource::get_absolute_path($view))) return $view;
 		return $info;
 	}
-	static function url_for($file){
-		$theme = filter_center::publish("should_get_theme", null, "themes/default");
-		return resource::url_for("$theme/$file");
+	static function url_for($file, $data = null){
+		$theme = "default";
+		if(array_key_exists("theme", $_COOKIE)) $theme = $_COOKIE["theme"];
+		try{
+			$setting = storage::find_settings((object)array("where"=>"key=:key", "args"=>array("key", "theme")));
+		}catch(Exception $e){}
+		if(count($setting) > 0) $theme = $setting[0]->value;
+		return resource::url_for("themes/$theme/$file", $data);
 	}
 }
 class plugin_controller{
 	static $plugins;
 	function begin_request($publisher, $info){
 		self::$plugins = array();
-		$folders = glob("plugins/*");
+		$path = resource::get_absolute_path("plugins/*");
+		$folders = glob($path);
 		$ubounds = count($folders);
 		$file = null;
 		for($i = 0; $i < $ubounds; $i++){
@@ -351,7 +457,10 @@ class plugin_controller{
 	}
 	function before_rendering_view($publisher, $view){
 		$plugin_name = get_class($publisher);
-		if(!in_array($plugin_name, self::$plugins)) return $view;
+		$result = array_filter(self::$plugins, function($item) use($plugin_name){
+			return strpos($item, $plugin_name) !== false;
+		});
+		if(count($result) === 0) return $view;
 		$view = "plugins/$plugin_name/$view";
 		return $view;
 	}
@@ -363,7 +472,11 @@ class view{
 		if(is_array($value)){
 			$message = "<ul>";
 			foreach($value as $key=>$value){
-				$message .= "<li>$value</li>";
+				if(is_object($value)){
+					$message .= "<li>" . json_encode($value) . "</li>";
+				}else{
+					$message .= "<li>$value</li>";					
+				}
 			}
 			$message .= "</ul>";
 		}
@@ -392,7 +505,7 @@ class view{
 		}
 		require($view);
 		$output = ob_get_clean();
-		$output = filter_center::publish("after_rendering_view", null, $output);
+		$output = filter_center::publish("after_rendering_view", $resource, $output);
 		return $output;
 	}
 }
@@ -410,8 +523,12 @@ class setting{
 }
 class settings{
 	static function site_title(){
-		$title = filter_center::publish("should_get_title", null, null);
-		return $title;
+		$default = array(new setting(array("key"=>"site_title", "value"=>"Chinchilla, a RESTful framework")));
+		try{
+			$settings = storage::find_settings((object)array("where"=>"key=:key", "args"=>array("key"=>"site_title")));			
+		}catch(Exception $e){}
+		if(count($settings) === 0) $settings = $default;
+		return $settings[0]->value;
 	}
 }
 class layout{

@@ -5,8 +5,14 @@ class storage{
 		$ref = new ReflectionClass($this);
 		$this->class_name = $ref->getName();
 		$this->table_name = array_key_exists("table_name", $options) && $options["table_name"] !== null ? $options["table_name"] :  string::pluralize($this->class_name);
-		$this->primary_key_field = array_key_exists("primary_key_field", $options) && $options["primary_key_field"] !== null ? $options["primary_key_field"] : "id";		
-		$this->provider = new PDO("sqlite:" . (array_key_exists("connection_string", $options) && $options["connection_string"] !== null ? $options["connection_string"] : filter_center::publish("should_get_storage_provider", $this, $this)));
+		$this->primary_key_field = array_key_exists("primary_key_field", $options) && $options["primary_key_field"] !== null ? $options["primary_key_field"] : "id";
+		$connection_string = (array_key_exists("connection_string", $options) && $options["connection_string"] !== null ? $options["connection_string"] : storage_provider());
+		try{
+			$this->provider = new PDO("sqlite:" . $connection_string);			
+		}catch(PDOException $e){
+			new SQLite3($connection_string);
+			$this->provider = new PDO("sqlite:" . $connection_string);			
+		}
 		$this->delegate = array_key_exists("delegate", $options) && $options["delegate"] !== null ? $options["delegate"] : null;
 	}
 	private $class_name;
@@ -17,8 +23,18 @@ class storage{
 	private $schema;
 	static function __callStatic($name, $args){
 		if(strpos($name, "find_") === false) return;
-		$name = str_replace("find_", "", $name);
-		$db = new storage(array("table_name"=>$name));		
+		$just_one = false;
+		if(strpos($name, "_one") !== false){
+			$just_one = true;
+			$name = preg_replace("/_one$/", "", $name);
+		}
+		$name = explode("_", $name);
+		array_shift($name);
+		$table_name = implode("_", $name);
+		if(count($name) > 2){
+			$just_one = $name[count($name)-1] === "one";
+		}
+		$db = new storage(array("table_name"=>$table_name));
 		$where = null;
 		$order_by = null;
 		$limit = 0;
@@ -26,7 +42,7 @@ class storage{
 		$columns = "ROWID as id, *";
 		$params = null;
 		if($args !== null && count($args) > 0 && $args[0] !== null){
-			$arg = $args[0];
+			$arg = (object)$args[0];
 			$where = property_exists($arg, "where") ? $arg->where : $where;
 			$order_by = property_exists($arg, "order_by") ? $arg->order_by : $order_by;
 			$limit = property_exists($arg, "limit") ? $arg->limit : $limit;
@@ -35,7 +51,11 @@ class storage{
 			$params = property_exists($arg, "args") ? $arg->args : $params;
 		}
 		$list = $db->all($where, $order_by, $limit, $offset, $columns, $params);
-		return $list !== null ? $list : array();
+		$default = array();
+		if($just_one) $default = null;
+		if($list === null) return $default;
+		if($just_one) return $list[0];
+		return $list;
 	}
 	function get_schema($table_name){
 		$this->schema = $this->query("pragma table_info($table_name)", null, function($obj){
@@ -73,8 +93,8 @@ class storage{
 		return $obj;
 	}
 	function query($sql, $args, $delegate = null){
-		$cmd = $this->create_command($sql, $args);			
-		$result = $cmd->execute();		
+		$cmd = $this->create_command($sql, $args);
+		$result = $cmd->execute();
 		$error_info = $this->provider->errorInfo();
 		$list = array();
 		if(count($error_info) > 1 && $error_info[1] !== null){
