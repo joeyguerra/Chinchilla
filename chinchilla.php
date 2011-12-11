@@ -4,6 +4,15 @@ class output_compressor{
 		return string::strip_whitespace($output);
 	}
 }
+class console{
+	static function log($value){
+		if(is_object($value) || is_array($value)){
+			error_log(json_encode($value));
+		}else{
+			error_log($value);
+		}
+	}
+}
 class front_controller{
 	function __construct(){}
 	function __destruct(){}
@@ -340,6 +349,7 @@ class resource_finder{
 		$this->request = $request;
 		$this->parser = new url_parser();
 		$this->url = $this->parser->parse($this->request);
+		console::log($this->url);
 		$this->resource_name = $this->url->resource_name . "_resource";
 		$file_path = filter_center::publish("before_including_resource_file", $this, "resources/{$this->resource_name}.php");
 		if(!file_exists($file_path)){
