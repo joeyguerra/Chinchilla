@@ -450,7 +450,7 @@ class theme_controller{
 		if(file_exists(resource::get_absolute_path($view))) return $view;
 		return $info;
 	}
-	static function url_for($file, $data){
+	static function url_for($file, $data = null){
 		$theme = self::get_theme();
 		return resource::url_for("themes/$theme/$file", $data);
 	}
