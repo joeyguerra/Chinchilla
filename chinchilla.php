@@ -5,12 +5,10 @@ class output_compressor{
 	}
 }
 class console{
-	static function log($value){
-		if(is_object($value) || is_array($value)){
-			error_log(json_encode($value));
-		}else{
-			error_log($value);
-		}
+	static function log($v){
+		if(is_object($v)) $v = json_encode($v);
+		if(is_array($v)) $v = json_encode($v);
+		error_log($v);
 	}
 }
 class front_controller{
@@ -192,30 +190,35 @@ class url_date_parser{
 }
 
 class url_parser{
+	public $request;
+	public $file_type;
+	public $resource_name;
 	function parse($request){
-		$name = self::get_r($request);
-		$date = url_date_parser::parse($name);
+		$this->request = $request;
+		$this->file_type = "html";
+		$this->resource_name = self::get_r($request);
+		$date = url_date_parser::parse($this->resource_name);
 		if($date !== null){
-			$name = "index";
+			$this->resource_name = "index";
 		}
-		$name = filter_center::publish("parsing_url", $this, $name);
-		if(strlen($name) === 0) $name = "index";
-		$file_type = "html";
-		if(strpos($name, ".") !== false){
-			$parts = explode(".", $name);
-			$file_type = $parts[count($parts)-1];
-			$name = str_replace(".$file_type", "", $name);
+		$this->resource_name = filter_center::publish("parsing_url", $this, $this->resource_name);
+		if(strlen($this->resource_name) === 0) $this->resource_name = "index";
+		if(strpos($this->resource_name, ".") !== false){
+			$parts = explode(".", $this->resource_name);
+			$this->file_type = $parts[count($parts)-1];
+			$this->resource_name = str_replace(".$this->file_type", "", $this->resource_name);
 		}
-		if(strpos($name, "/") !== false){
-			$parts = explode("/", $name);
-			$name = $parts[0];
-		}
-		return (object)array("resource_name"=>$name, "request"=>$request, "file_type"=>$file_type);
+		if(strpos($this->resource_name, "/") !== false){
+			$parts = explode("/", $this->resource_name);
+			$this->resource_name = $parts[0];
+		}		
+		return (object)array("resource_name"=>$this->resource_name, "request"=>$this->request, "file_type"=>$this->file_type);
 	}
 	static function get_r($request){
 		return array_key_exists("r", $request->request) && strlen($request->request["r"]) > 0 ? $request->request["r"] : "index";
 	}
 }
+
 class resource{
 	function __construct($request, $url){
 		$this->request = $request;
@@ -349,13 +352,12 @@ class resource_finder{
 		$this->request = $request;
 		$this->parser = new url_parser();
 		$this->url = $this->parser->parse($this->request);
-		console::log($this->url);
 		$this->resource_name = $this->url->resource_name . "_resource";
 		$file_path = filter_center::publish("before_including_resource_file", $this, "resources/{$this->resource_name}.php");
 		if(!file_exists($file_path)){
 			$resource = filter_center::publish("resource_not_found", $this, $this->resource_name);
-		}else{
-			require $file_path;			
+		}else{			
+			require $file_path;
 			$resource = new $this->resource_name($request, $this->url);
 		}
 		$file_path = filter_center::publish("after_creating_resource", $this, $resource);
@@ -428,6 +430,15 @@ class request{
 	}
 }
 class theme_controller{
+	static function get_theme(){
+		$theme = "default";
+		if(array_key_exists("theme", $_COOKIE)) $theme = $_COOKIE["theme"];
+		try{
+			$setting = storage::find_settings((object)array("where"=>"key=:key", "args"=>array("key", "theme")));
+		}catch(Exception $e){}
+		if(count($setting) > 0) $theme = $setting[0]->value;
+		return $theme;
+	}
 	function before_rendering_view($publisher, $info){
 		$view = $info;
 		$theme = array((object)array("value"=>"default"));
@@ -439,14 +450,14 @@ class theme_controller{
 		if(file_exists(resource::get_absolute_path($view))) return $view;
 		return $info;
 	}
-	static function url_for($file, $data = null){
-		$theme = "default";
-		if(array_key_exists("theme", $_COOKIE)) $theme = $_COOKIE["theme"];
-		try{
-			$setting = storage::find_settings((object)array("where"=>"key=:key", "args"=>array("key", "theme")));
-		}catch(Exception $e){}
-		if(count($setting) > 0) $theme = $setting[0]->value;
+	static function url_for($file, $data){
+		$theme = self::get_theme();
 		return resource::url_for("themes/$theme/$file", $data);
+	}
+	function should_set_css_path($publisher, $info){
+		$path = "themes/" . self::get_theme() . "/$info";
+		if(file_exists($path)) return $path;
+		return $info;
 	}
 }
 class plugin_controller{
