@@ -78,4 +78,4 @@ filter_center::subscribe("parsing_url", null, new member_url_parser());
 filter_center::subscribe("setting_parameter_from_request", null, new magic_quotes_remover());
 filter_center::subscribe("setting_parameter_from_request", null, new object_populator_from_request());
 $request_controller = new front_controller();
-echo $request_controller->execute(new request($_SERVER, $_REQUEST));
+echo $request_controller->execute(new request($_SERVER, $_REQUEST, $_FILES, $_POST, $_GET));
